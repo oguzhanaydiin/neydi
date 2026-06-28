@@ -10,8 +10,13 @@ defineProps<{
   <UCard class="group hover:shadow-md transition-shadow">
     <div class="flex flex-col gap-3 h-full">
       <div class="flex-1">
-        <h3 class="font-semibold text-lg leading-tight">{{ deck.name }}</h3>
-        <p v-if="deck.description" class="text-sm text-muted mt-1 line-clamp-2">
+        <h3 class="font-semibold text-lg leading-tight">
+          {{ deck.name }}
+        </h3>
+        <p
+          v-if="deck.description"
+          class="text-sm text-muted mt-1 line-clamp-2"
+        >
           {{ deck.description }}
         </p>
       </div>

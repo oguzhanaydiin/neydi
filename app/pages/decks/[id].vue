@@ -26,8 +26,14 @@ const openAdd = () => {
 const submitAdd = () => {
   addErrors.value = { front: '', back: '' }
   let valid = true
-  if (!newFront.value.trim()) { addErrors.value.front = 'Required'; valid = false }
-  if (!newBack.value.trim()) { addErrors.value.back = 'Required'; valid = false }
+  if (!newFront.value.trim()) {
+    addErrors.value.front = 'Required'
+    valid = false
+  }
+  if (!newBack.value.trim()) {
+    addErrors.value.back = 'Required'
+    valid = false
+  }
   if (!valid) return
   addCard(deckId, newFront.value, newBack.value)
   isAddOpen.value = false
@@ -39,7 +45,7 @@ const editFront = ref('')
 const editBack = ref('')
 const editErrors = ref({ front: '', back: '' })
 
-const openEdit = (card: { id: string; front: string; back: string }) => {
+const openEdit = (card: { id: string, front: string, back: string }) => {
   editCardId.value = card.id
   editFront.value = card.front
   editBack.value = card.back
@@ -49,8 +55,14 @@ const openEdit = (card: { id: string; front: string; back: string }) => {
 const submitEdit = () => {
   editErrors.value = { front: '', back: '' }
   let valid = true
-  if (!editFront.value.trim()) { editErrors.value.front = 'Required'; valid = false }
-  if (!editBack.value.trim()) { editErrors.value.back = 'Required'; valid = false }
+  if (!editFront.value.trim()) {
+    editErrors.value.front = 'Required'
+    valid = false
+  }
+  if (!editBack.value.trim()) {
+    editErrors.value.back = 'Required'
+    valid = false
+  }
   if (!valid || !editCardId.value) return
   updateCard(deckId, editCardId.value, editFront.value, editBack.value)
   editCardId.value = null
@@ -90,7 +102,10 @@ const submitEditDeck = () => {
 </script>
 
 <template>
-  <UContainer v-if="deck" class="py-10">
+  <UContainer
+    v-if="deck"
+    class="py-10"
+  >
     <!-- Header -->
     <div class="mb-8">
       <UBreadcrumb
@@ -110,7 +125,12 @@ const submitEditDeck = () => {
               @click="openEditDeck"
             />
           </h1>
-          <p v-if="deck.description" class="text-muted mt-1">{{ deck.description }}</p>
+          <p
+            v-if="deck.description"
+            class="text-muted mt-1"
+          >
+            {{ deck.description }}
+          </p>
           <div class="flex items-center gap-3 mt-3">
             <UBadge
               :label="`${deck.cards.length} ${deck.cards.length === 1 ? 'card' : 'cards'}`"
@@ -141,14 +161,20 @@ const submitEditDeck = () => {
     </div>
 
     <!-- Empty state -->
-    <div v-if="deck.cards.length === 0" class="py-20">
+    <div
+      v-if="deck.cards.length === 0"
+      class="py-20"
+    >
       <UEmpty
         icon="i-lucide-credit-card"
         title="No cards yet"
         description="Add some cards to start studying this deck"
       >
         <template #actions>
-          <UButton icon="i-lucide-plus" @click="openAdd">
+          <UButton
+            icon="i-lucide-plus"
+            @click="openAdd"
+          >
             Add your first card
           </UButton>
         </template>
@@ -156,7 +182,10 @@ const submitEditDeck = () => {
     </div>
 
     <!-- Cards list -->
-    <div v-else class="flex flex-col gap-3">
+    <div
+      v-else
+      class="flex flex-col gap-3"
+    >
       <UCard
         v-for="(card, index) in deck.cards"
         :key="card.id"
@@ -165,12 +194,20 @@ const submitEditDeck = () => {
           <span class="text-xs font-mono text-muted pt-0.5 w-5 shrink-0">{{ index + 1 }}</span>
           <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0">
             <div>
-              <p class="text-xs font-semibold uppercase tracking-wide text-muted mb-1">Front</p>
-              <p class="text-sm whitespace-pre-wrap break-words">{{ card.front }}</p>
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted mb-1">
+                Front
+              </p>
+              <p class="text-sm whitespace-pre-wrap wrap-break-word">
+                {{ card.front }}
+              </p>
             </div>
             <div>
-              <p class="text-xs font-semibold uppercase tracking-wide text-muted mb-1">Back</p>
-              <p class="text-sm whitespace-pre-wrap break-words">{{ card.back }}</p>
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted mb-1">
+                Back
+              </p>
+              <p class="text-sm whitespace-pre-wrap wrap-break-word">
+                {{ card.back }}
+              </p>
             </div>
           </div>
           <div class="flex gap-1 shrink-0">
@@ -194,10 +231,16 @@ const submitEditDeck = () => {
     </div>
 
     <!-- Add Card Modal -->
-    <UModal v-model:open="isAddOpen" title="Add Card">
+    <UModal
+      v-model:open="isAddOpen"
+      title="Add Card"
+    >
       <template #body>
         <div class="flex flex-col gap-4">
-          <UFormField label="Front" :error="addErrors.front || undefined">
+          <UFormField
+            label="Front"
+            :error="addErrors.front || undefined"
+          >
             <UTextarea
               v-model="newFront"
               placeholder="Question or term"
@@ -206,7 +249,10 @@ const submitEditDeck = () => {
               autofocus
             />
           </UFormField>
-          <UFormField label="Back" :error="addErrors.back || undefined">
+          <UFormField
+            label="Back"
+            :error="addErrors.back || undefined"
+          >
             <UTextarea
               v-model="newBack"
               placeholder="Answer or definition"
@@ -218,10 +264,17 @@ const submitEditDeck = () => {
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton color="neutral" variant="subtle" @click="isAddOpen = false">
+          <UButton
+            color="neutral"
+            variant="subtle"
+            @click="isAddOpen = false"
+          >
             Cancel
           </UButton>
-          <UButton icon="i-lucide-plus" @click="submitAdd">
+          <UButton
+            icon="i-lucide-plus"
+            @click="submitAdd"
+          >
             Add Card
           </UButton>
         </div>
@@ -236,7 +289,10 @@ const submitEditDeck = () => {
     >
       <template #body>
         <div class="flex flex-col gap-4">
-          <UFormField label="Front" :error="editErrors.front || undefined">
+          <UFormField
+            label="Front"
+            :error="editErrors.front || undefined"
+          >
             <UTextarea
               v-model="editFront"
               placeholder="Question or term"
@@ -244,7 +300,10 @@ const submitEditDeck = () => {
               :rows="3"
             />
           </UFormField>
-          <UFormField label="Back" :error="editErrors.back || undefined">
+          <UFormField
+            label="Back"
+            :error="editErrors.back || undefined"
+          >
             <UTextarea
               v-model="editBack"
               placeholder="Answer or definition"
@@ -256,10 +315,17 @@ const submitEditDeck = () => {
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton color="neutral" variant="subtle" @click="editCardId = null">
+          <UButton
+            color="neutral"
+            variant="subtle"
+            @click="editCardId = null"
+          >
             Cancel
           </UButton>
-          <UButton icon="i-lucide-check" @click="submitEdit">
+          <UButton
+            icon="i-lucide-check"
+            @click="submitEdit"
+          >
             Save
           </UButton>
         </div>
@@ -273,14 +339,24 @@ const submitEditDeck = () => {
       @update:open="deleteCardId = null"
     >
       <template #body>
-        <p class="text-muted">This card will be permanently deleted.</p>
+        <p class="text-muted">
+          This card will be permanently deleted.
+        </p>
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton color="neutral" variant="subtle" @click="deleteCardId = null">
+          <UButton
+            color="neutral"
+            variant="subtle"
+            @click="deleteCardId = null"
+          >
             Cancel
           </UButton>
-          <UButton color="error" icon="i-lucide-trash-2" @click="doDeleteCard">
+          <UButton
+            color="error"
+            icon="i-lucide-trash-2"
+            @click="doDeleteCard"
+          >
             Delete
           </UButton>
         </div>
@@ -288,23 +364,48 @@ const submitEditDeck = () => {
     </UModal>
 
     <!-- Edit Deck Modal -->
-    <UModal v-model:open="isEditDeckOpen" title="Edit Deck">
+    <UModal
+      v-model:open="isEditDeckOpen"
+      title="Edit Deck"
+    >
       <template #body>
         <div class="flex flex-col gap-4">
-          <UFormField label="Deck name" :error="editDeckError || undefined">
-            <UInput v-model="editDeckName" class="w-full" autofocus @keyup.enter="submitEditDeck" />
+          <UFormField
+            label="Deck name"
+            :error="editDeckError || undefined"
+          >
+            <UInput
+              v-model="editDeckName"
+              class="w-full"
+              autofocus
+              @keyup.enter="submitEditDeck"
+            />
           </UFormField>
-          <UFormField label="Description" hint="optional">
-            <UTextarea v-model="editDeckDesc" class="w-full" :rows="2" />
+          <UFormField
+            label="Description"
+            hint="optional"
+          >
+            <UTextarea
+              v-model="editDeckDesc"
+              class="w-full"
+              :rows="2"
+            />
           </UFormField>
         </div>
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton color="neutral" variant="subtle" @click="isEditDeckOpen = false">
+          <UButton
+            color="neutral"
+            variant="subtle"
+            @click="isEditDeckOpen = false"
+          >
             Cancel
           </UButton>
-          <UButton icon="i-lucide-check" @click="submitEditDeck">
+          <UButton
+            icon="i-lucide-check"
+            @click="submitEditDeck"
+          >
             Save
           </UButton>
         </div>
