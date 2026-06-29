@@ -16,16 +16,16 @@ const onClick = () => {
 
 <template>
   <div
-    class="w-full max-w-xs sm:max-w-sm mx-auto aspect-5/7 perspective-[3000px] cursor-pointer select-none"
+    class="w-full max-w-xs sm:max-w-sm mx-auto aspect-5/7 perspective-card cursor-pointer select-none"
     @click="onClick"
   >
     <div
-      class="w-full h-full relative transform-3d transition-transform duration-550 ease-in-out"
+      class="w-full h-full relative transform-3d transition-transform duration-flip ease-in-out"
       :class="{ 'rotate-y-180': revealed }"
     >
       <!-- Front -->
       <div
-        class="absolute inset-0 backface-hidden flex flex-col items-center justify-center gap-3 rounded-xl p-10 border border-default bg-default shadow-[0_4px_24px_-4px_rgb(0_0_0/_0.08)]"
+        class="absolute inset-0 backface-hidden flex flex-col items-center justify-center gap-3 rounded-xl p-10 border border-default bg-default shadow-card"
       >
         <p
           class="text-[clamp(1.1rem,3vw,1.5rem)] font-medium text-center leading-[1.4] max-w-full wrap-break-word"
@@ -42,7 +42,7 @@ const onClick = () => {
 
       <!-- Back -->
       <div
-        class="absolute inset-0 backface-hidden rotate-y-180 flex flex-col items-center justify-center gap-3 rounded-xl p-10 border border-default bg-elevated shadow-[0_4px_24px_-4px_rgb(0_0_0/_0.08)]"
+        class="absolute inset-0 backface-hidden rotate-y-180 flex flex-col items-center justify-center gap-3 rounded-xl p-10 border border-default bg-elevated shadow-card"
       >
         <p
           class="text-xs font-semibold tracking-[0.08em] uppercase text-primary absolute top-5"

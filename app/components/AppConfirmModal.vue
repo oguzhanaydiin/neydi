@@ -4,13 +4,13 @@ const props = defineProps<{
   title: string
   message: string
   confirmLabel?: string
-  confirmColor?: string
+  confirmColor?: 'error' | 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'neutral'
   confirmIcon?: string
 }>()
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
-  confirm: []
+  'confirm': []
 }>()
 
 const confirmLabel = computed(() => props.confirmLabel ?? 'Delete')

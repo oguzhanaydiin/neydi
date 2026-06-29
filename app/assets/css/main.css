@@ -3,4 +3,7 @@
 
 @theme static {
   --font-sans: 'Public Sans', sans-serif;
+  --shadow-card: 0 4px 24px -4px rgb(0 0 0 / 0.08);
+  --duration-flip: 550ms;
+  --perspective-card: 3000px;
 }
