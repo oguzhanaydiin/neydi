@@ -10,7 +10,7 @@ useHead({
   ],
   htmlAttrs: computed(() => ({
     lang: 'en',
-...(['lahmacun', 'strawberry-shortcake', 'vulnicura'].includes(theme.value) ? { 'data-theme': theme.value } : {})
+    ...(CUSTOM_THEMES.includes(theme.value) ? { 'data-theme': theme.value } : {})
   }))
 })
 
