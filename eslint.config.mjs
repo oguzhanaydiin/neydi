@@ -2,5 +2,11 @@
 import withNuxt from './.nuxt/eslint.config.mjs'
 
 export default withNuxt(
-  // Your custom configs here
+  {
+    rules: {
+      'vue/singleline-html-element-content-newline': 'off',
+      'no-empty': 'off',
+      '@stylistic/max-statements-per-line': 'off'
+    }
+  }
 )
