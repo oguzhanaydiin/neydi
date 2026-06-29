@@ -60,24 +60,38 @@ const restart = () => {
 </script>
 
 <template>
-  <UContainer v-if="deck" class="py-10 max-w-2xl">
+  <UContainer
+    v-if="deck"
+    class="py-10 max-w-2xl"
+  >
     <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
-      <UBreadcrumb
-        :items="[{ label: 'Decks', to: '/' }, { label: deck.name, to: `/decks/${deckId}` }, { label: 'Study' }]"
-      />
+    <div
+      class="flex items-center justify-between gap-2 mb-6"
+    >
+      <div
+        class="min-w-0 flex-1"
+      >
+        <UBreadcrumb
+          :items="[{ label: 'Decks', to: '/' }, { label: deck.name, to: `/decks/${deckId}` }, { label: 'Study' }]"
+        />
+      </div>
       <UButton
         :to="`/decks/${deckId}`"
         icon="i-lucide-x"
         color="neutral"
         variant="ghost"
         size="sm"
+        class="shrink-0"
       />
     </div>
 
     <!-- Progress -->
-    <div class="mb-6">
-      <div class="flex justify-between text-sm text-muted mb-2">
+    <div
+      class="mb-6"
+    >
+      <div
+        class="flex justify-between text-sm text-muted mb-2"
+      >
         <span>{{ gotItCount }} / {{ totalCards }} cards learned</span>
         <span>{{ queue.length }} remaining</span>
       </div>
@@ -85,17 +99,32 @@ const restart = () => {
     </div>
 
     <!-- Done state -->
-    <div v-if="done" class="py-12 text-center">
+    <div
+      v-if="done"
+      class="py-12 text-center"
+    >
       <div class="text-6xl mb-4">🎉</div>
       <h2 class="text-2xl font-bold mb-2">Session complete!</h2>
-      <p class="text-muted mb-8">
+      <p
+        class="text-muted mb-8"
+      >
         You went through all {{ totalCards }} cards in <strong>{{ deck.name }}</strong>.
       </p>
-      <div class="flex justify-center gap-3">
-        <UButton icon="i-lucide-rotate-ccw" color="neutral" variant="subtle" @click="restart">
+      <div
+        class="flex justify-center gap-3"
+      >
+        <UButton
+          icon="i-lucide-rotate-ccw"
+          color="neutral"
+          variant="subtle"
+          @click="restart"
+        >
           Study again
         </UButton>
-        <UButton :to="`/decks/${deckId}`" icon="i-lucide-settings-2">
+        <UButton
+          :to="`/decks/${deckId}`"
+          icon="i-lucide-settings-2"
+        >
           Manage deck
         </UButton>
       </div>
@@ -110,7 +139,9 @@ const restart = () => {
         @reveal="reveal"
       />
 
-      <div class="mt-6 flex flex-col items-center gap-3">
+      <div
+        class="mt-6 flex flex-col items-center gap-3"
+      >
         <template v-if="!revealed">
           <UButton
             size="xl"
@@ -123,7 +154,9 @@ const restart = () => {
         </template>
         <template v-else>
           <p class="text-sm text-muted">How did you do?</p>
-          <div class="flex gap-3 w-full max-w-sm">
+          <div
+            class="flex gap-3 w-full max-w-sm"
+          >
             <UButton
               size="xl"
               color="error"
@@ -148,9 +181,14 @@ const restart = () => {
       </div>
 
       <!-- Card counter -->
-      <p class="text-center text-xs text-muted mt-6">
+      <p
+        class="text-center text-xs text-muted mt-6"
+      >
         Card {{ gotItCount + 1 }} of {{ totalCards }}
-        <span v-if="queue.length > totalCards - gotItCount" class="ml-1 text-warning">(repeating)</span>
+        <span
+          v-if="queue.length > totalCards - gotItCount"
+          class="ml-1 text-warning"
+        >(repeating)</span>
       </p>
     </template>
   </UContainer>

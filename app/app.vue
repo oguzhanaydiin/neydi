@@ -19,9 +19,12 @@ useSeoMeta({
 
 <template>
   <UApp>
-    <UHeader>
+    <UHeader :toggle="false">
       <template #left>
-        <NuxtLink to="/" class="font-bold text-xl tracking-tight text-primary">
+        <NuxtLink
+          to="/"
+          class="font-bold text-xl tracking-tight text-primary"
+        >
           neydi
         </NuxtLink>
       </template>
@@ -37,7 +40,9 @@ useSeoMeta({
 
     <UFooter>
       <template #left>
-        <p class="text-sm text-muted">
+        <p
+          class="text-sm text-muted"
+        >
           neydi — remember more, forget less
         </p>
       </template>

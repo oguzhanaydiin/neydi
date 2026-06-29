@@ -7,10 +7,18 @@ defineProps<{
 </script>
 
 <template>
-  <UCard class="group hover:shadow-md transition-shadow">
-    <div class="flex flex-col gap-3 h-full">
-      <div class="flex-1">
-        <h3 class="font-semibold text-lg leading-tight">
+  <UCard
+    class="group hover:shadow-md transition-shadow"
+  >
+    <div
+      class="flex flex-col gap-3 h-full"
+    >
+      <div
+        class="flex-1"
+      >
+        <h3
+          class="font-semibold text-lg leading-tight"
+        >
           {{ deck.name }}
         </h3>
         <p
@@ -21,7 +29,9 @@ defineProps<{
         </p>
       </div>
 
-      <div class="flex items-center gap-2">
+      <div
+        class="flex items-center gap-2"
+      >
         <UBadge
           :label="`${deck.cards.length} ${deck.cards.length === 1 ? 'card' : 'cards'}`"
           variant="subtle"
@@ -30,7 +40,9 @@ defineProps<{
         />
       </div>
 
-      <div class="flex gap-2 pt-1">
+      <div
+        class="flex gap-2 pt-1"
+      >
         <UButton
           :to="`/study/${deck.id}`"
           :disabled="deck.cards.length === 0"

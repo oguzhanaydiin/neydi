@@ -16,7 +16,7 @@ const onClick = () => {
 
 <template>
   <div
-    class="w-full h-[300px] perspective-[3000px] cursor-pointer select-none"
+    class="w-full max-w-xs sm:max-w-sm mx-auto aspect-5/7 perspective-[3000px] cursor-pointer select-none"
     @click="onClick"
   >
     <div
@@ -24,22 +24,34 @@ const onClick = () => {
       :class="{ 'rotate-y-180': revealed }"
     >
       <!-- Front -->
-      <div class="absolute inset-0 backface-hidden flex flex-col items-center justify-center gap-3 rounded-xl p-10 border border-default bg-default shadow-[0_4px_24px_-4px_rgb(0_0_0/_0.08)]">
-        <p class="text-[clamp(1.1rem,3vw,1.5rem)] font-medium text-center leading-[1.4] max-w-full wrap-break-word">
+      <div
+        class="absolute inset-0 backface-hidden flex flex-col items-center justify-center gap-3 rounded-xl p-10 border border-default bg-default shadow-[0_4px_24px_-4px_rgb(0_0_0/_0.08)]"
+      >
+        <p
+          class="text-[clamp(1.1rem,3vw,1.5rem)] font-medium text-center leading-[1.4] max-w-full wrap-break-word"
+        >
           {{ front }}
         </p>
-        <p class="text-xs text-muted absolute bottom-5 flex items-center gap-1">
+        <p
+          class="text-xs text-muted absolute bottom-5 flex items-center gap-1"
+        >
           <UIcon name="i-lucide-mouse-pointer-click" />
           Click to reveal
         </p>
       </div>
 
       <!-- Back -->
-      <div class="absolute inset-0 backface-hidden rotate-y-180 flex flex-col items-center justify-center gap-3 rounded-xl p-10 border border-default bg-elevated shadow-[0_4px_24px_-4px_rgb(0_0_0/_0.08)]">
-        <p class="text-xs font-semibold tracking-[0.08em] uppercase text-primary absolute top-5">
+      <div
+        class="absolute inset-0 backface-hidden rotate-y-180 flex flex-col items-center justify-center gap-3 rounded-xl p-10 border border-default bg-elevated shadow-[0_4px_24px_-4px_rgb(0_0_0/_0.08)]"
+      >
+        <p
+          class="text-xs font-semibold tracking-[0.08em] uppercase text-primary absolute top-5"
+        >
           Answer
         </p>
-        <p class="text-[clamp(1.1rem,3vw,1.5rem)] font-medium text-center leading-[1.4] max-w-full wrap-break-word">
+        <p
+          class="text-[clamp(1.1rem,3vw,1.5rem)] font-medium text-center leading-[1.4] max-w-full wrap-break-word"
+        >
           {{ back }}
         </p>
       </div>
