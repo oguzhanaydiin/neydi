@@ -5,8 +5,8 @@ export default withNuxt(
   {
     rules: {
       'vue/singleline-html-element-content-newline': 'off',
-      'no-empty': 'off'
-      'stylistic/max-statements-per-line': 'off'  
+      'no-empty': 'off',
+      'stylistic/max-statements-per-line': 'off'
     }
   }
 )
