@@ -7,3 +7,117 @@
   --duration-flip: 550ms;
   --perspective-card: 3000px;
 }
+
+/* Vulnicura theme — Björk cover art: void black, old gold veins */
+html[data-theme="vulnicura"] {
+  /* Backgrounds — near void, barely warm black */
+  --ui-bg: #09080a;
+  --ui-bg-muted: #110f14;
+  --ui-bg-elevated: #1a1720;
+  --ui-bg-accented: #24202c;
+  --ui-bg-inverted: #eee8c0;
+
+  /* Text — pale gold, like the anatomical veins on the cover */
+  --ui-text-dimmed: #4a4018;
+  --ui-text-muted: #806820;
+  --ui-text-toned: #a8902a;
+  --ui-text: #d4b84a;
+  --ui-text-highlighted: #eee0a0;
+  --ui-text-inverted: #09080a;
+
+  /* Borders — barely visible gold traces */
+  --ui-border: #24202c;
+  --ui-border-muted: #1a1720;
+  --ui-border-accented: #3a3220;
+  --ui-border-inverted: #eee8c0;
+
+  /* Primary — old tarnished gold */
+  --ui-primary: #c0a020;
+  --ui-color-primary-50: #fdf8e8;
+  --ui-color-primary-100: #f8eec4;
+  --ui-color-primary-200: #f0da88;
+  --ui-color-primary-300: #e4be44;
+  --ui-color-primary-400: #d4a020;
+  --ui-color-primary-500: #c0a020;
+  --ui-color-primary-600: #9e7e14;
+  --ui-color-primary-700: #7c6010;
+  --ui-color-primary-800: #604a10;
+  --ui-color-primary-900: #4e3c10;
+  --ui-color-primary-950: #2c2008;
+}
+
+/* Strawberry Shortcake theme — soft blush, whipped cream, ripe strawberry */
+html[data-theme="strawberry-shortcake"] {
+  /* Backgrounds — blush cream and whipped cream layers */
+  --ui-bg: #fdeef3;
+  --ui-bg-muted: #f8dde8;
+  --ui-bg-elevated: #fff6f9;
+  --ui-bg-accented: #f2cad8;
+  --ui-bg-inverted: #3c1020;
+
+  /* Text — deep berry, warm and readable */
+  --ui-text-dimmed: #c87898;
+  --ui-text-muted: #9a4060;
+  --ui-text-toned: #742840;
+  --ui-text: #4a1828;
+  --ui-text-highlighted: #2c0e18;
+  --ui-text-inverted: #fdeef3;
+
+  /* Borders — soft pink */
+  --ui-border: #efbece;
+  --ui-border-muted: #f8dde8;
+  --ui-border-accented: #dfa0b8;
+  --ui-border-inverted: #3c1020;
+
+  /* Primary — bright fresh strawberry */
+  --ui-primary: #f03660;
+  --ui-color-primary-50: #fff0f4;
+  --ui-color-primary-100: #ffdce8;
+  --ui-color-primary-200: #ffb4cc;
+  --ui-color-primary-300: #ff7aa4;
+  --ui-color-primary-400: #f84e7c;
+  --ui-color-primary-500: #f03660;
+  --ui-color-primary-600: #cc2048;
+  --ui-color-primary-700: #a8163a;
+  --ui-color-primary-800: #86102e;
+  --ui-color-primary-900: #6e0e28;
+  --ui-color-primary-950: #3e0616;
+}
+
+/* Lahmacun theme — lavaş flatbread color, dark spice text, tomato topping accent */
+html[data-theme="lahmacun"] {
+  /* Backgrounds — warm wheat beige of flatbread */
+  --ui-bg: #e4d0a0;
+  --ui-bg-muted: #d8c48e;
+  --ui-bg-elevated: #f0e4c4;
+  --ui-bg-accented: #ccb47a;
+  --ui-bg-inverted: #2c1606;
+
+  /* Text — dark spiced brown, like the topping on the flatbread */
+  --ui-text-dimmed: #b08840;
+  --ui-text-muted: #7a5020;
+  --ui-text-toned: #573010;
+  --ui-text: #35180a;
+  --ui-text-highlighted: #1c0c04;
+  --ui-text-inverted: #f0e4c4;
+
+  /* Borders — baked golden-brown edges */
+  --ui-border: #c0a458;
+  --ui-border-muted: #d4bc7a;
+  --ui-border-accented: #a08040;
+  --ui-border-inverted: #2c1606;
+
+  /* Primary — lahmacun topping red */
+  --ui-primary: #c02e10;
+  --ui-color-primary-50: #fff2ee;
+  --ui-color-primary-100: #ffddd0;
+  --ui-color-primary-200: #ffb8a0;
+  --ui-color-primary-300: #ff8060;
+  --ui-color-primary-400: #e84e2c;
+  --ui-color-primary-500: #c02e10;
+  --ui-color-primary-600: #9e240c;
+  --ui-color-primary-700: #7e1c0a;
+  --ui-color-primary-800: #62160c;
+  --ui-color-primary-900: #50140e;
+  --ui-color-primary-950: #2c0806;
+}

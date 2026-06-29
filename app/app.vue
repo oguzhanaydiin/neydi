@@ -1,4 +1,6 @@
 <script setup>
+const { theme, setTheme } = useTheme()
+
 useHead({
   meta: [
     { name: 'viewport', content: 'width=device-width, initial-scale=1' }
@@ -6,14 +8,19 @@ useHead({
   link: [
     { rel: 'icon', href: '/favicon.ico' }
   ],
-  htmlAttrs: {
-    lang: 'en'
-  }
+  htmlAttrs: computed(() => ({
+    lang: 'en',
+...(['lahmacun', 'strawberry-shortcake', 'vulnicura'].includes(theme.value) ? { 'data-theme': theme.value } : {})
+  }))
 })
 
 useSeoMeta({
   title: 'neydi — flashcards',
   description: 'A simple flashcard app to help you remember things.'
+})
+
+onMounted(() => {
+  setTheme(theme.value)
 })
 </script>
 
@@ -30,7 +37,7 @@ useSeoMeta({
       </template>
 
       <template #right>
-        <UColorModeButton />
+        <ThemeSwitcher />
       </template>
     </UHeader>
 
