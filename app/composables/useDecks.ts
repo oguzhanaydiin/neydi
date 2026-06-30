@@ -78,6 +78,13 @@ export const useDecks = () => {
     return card
   }
 
+  const reorderCards = (deckId: string, newOrder: Card[]) => {
+    const deck = getDeck(deckId)
+    if (!deck) return
+    deck.cards = newOrder
+    persist()
+  }
+
   const updateCardConfidence = (deckId: string, cardId: string, confidence: number) => {
     const deck = getDeck(deckId)
     if (!deck) return
@@ -113,6 +120,7 @@ export const useDecks = () => {
     addCard,
     updateCard,
     updateCardConfidence,
+    reorderCards,
     deleteCard
   }
 }
