@@ -52,9 +52,6 @@ jobs:
       - name: Static HTML export with Nuxt
         run: pnpm exec nuxt generate
 
-      - name: Create SPA fallback for GitHub Pages
-        run: cp .output/public/index.html .output/public/404.html
-
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
