@@ -5,6 +5,8 @@ const route = useRoute()
 const router = useRouter()
 const { getDeck, updateCardConfidence } = useDecks()
 
+const flashCardRef = ref<{ swipeOut: (d: 'left' | 'right') => void } | null>(null)
+
 const deckId = route.params.id as string
 const deck = computed(() => getDeck(deckId))
 
@@ -84,6 +86,9 @@ const dontKnow = () => {
   revealed.value = false
   if (queue.value.length === 0) done.value = true
 }
+
+const handleKnow = () => flashCardRef.value?.swipeOut('right')
+const handleDontKnow = () => flashCardRef.value?.swipeOut('left')
 
 const restart = () => {
   initSession()
@@ -199,11 +204,15 @@ const confidenceLabelFor = (c: number) => {
     <!-- Study card -->
     <template v-else-if="currentCard">
       <FlashCard
+        :key="currentCard.id"
+        ref="flashCardRef"
         :front="currentCard.front"
         :back="currentCard.back"
         :revealed="revealed"
         :confidence="currentCard.confidence"
         @toggle="toggleReveal"
+        @known="know"
+        @unknown="dontKnow"
       />
 
       <!-- Confidence label -->
@@ -223,7 +232,7 @@ const confidenceLabelFor = (c: number) => {
               variant="subtle"
               class="w-full"
               icon="i-lucide-x"
-              @click="dontKnow"
+              @click="handleDontKnow"
             >
               Don't Know
             </UButton>
@@ -237,7 +246,7 @@ const confidenceLabelFor = (c: number) => {
               color="success"
               class="w-full"
               icon="i-lucide-check"
-              @click="know"
+              @click="handleKnow"
             >
               Know
             </UButton>
