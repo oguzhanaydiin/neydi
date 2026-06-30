@@ -1,6 +1,6 @@
 export type Theme = 'dark' | 'light' | 'lahmacun' | 'strawberry-shortcake' | 'vulnicura'
 
-const CUSTOM_THEMES: Theme[] = ['lahmacun', 'strawberry-shortcake', 'vulnicura']
+export const CUSTOM_THEMES: Theme[] = ['lahmacun', 'strawberry-shortcake', 'vulnicura']
 
 export function useTheme() {
   const colorMode = useColorMode()
