@@ -15,10 +15,9 @@ watchEffect(() => {
 })
 
 interface SessionCard extends Card {
-  sessionConfidence: number // confidence at start of this session
+  sessionConfidence: number
 }
 
-// Session state
 const queue = ref<SessionCard[]>([])
 const revealed = ref(false)
 const done = ref(false)
@@ -32,7 +31,6 @@ const progress = computed(() =>
   totalCards.value === 0 ? 0 : Math.round((answeredCount.value / totalCards.value) * 100)
 )
 
-// Cards that improved confidence this session
 const improvedCount = computed(() => {
   if (!deck.value) return 0
   return deck.value.cards.filter(c => (c.confidence ?? 0) > 0).length
@@ -40,7 +38,6 @@ const improvedCount = computed(() => {
 
 const initSession = () => {
   if (!deck.value) return
-  // Sort: lower confidence first, shuffle within same tier
   const sorted = [...deck.value.cards].sort((a, b) => {
     const diff = (a.confidence ?? 0) - (b.confidence ?? 0)
     return diff !== 0 ? diff : Math.random() - 0.5
@@ -59,18 +56,7 @@ const toggleReveal = () => {
   revealed.value = !revealed.value
 }
 
-/**
- * Confidence scale: 0=New · 1=Seen · 2=Learning · 3=Familiar · 4=Strong · 5=Mastered
- *
- * Know    → +1  (slow steady climb — needs 5 consecutive knows to reach mastered)
- * Don't   → -2  (forgetting is a stronger signal than remembering, but floor at 0)
- *
- * Examples:
- *   Mastered (5) + Don't Know → Strong (3)   — big drop, you slipped
- *   Familiar (3) + Don't Know → Seen (1)     — meaningful setback
- *   New (0)      + Don't Know → New (0)      — can't go below zero
- *   Strong (4)   + Know       → Mastered (5) — one more to seal it
- */
+// know +1, dontKnow -2 (forgetting penalised more than remembering)
 const know = () => {
   const card = queue.value.shift()!
   updateCardConfidence(deckId, card.id, Math.min(5, (card.confidence ?? 0) + 1))
@@ -167,7 +153,6 @@ const confidenceLabelFor = (c: number) => {
         You went through all {{ totalCards }} cards in <strong>{{ deck.name }}</strong>.
       </p>
 
-      <!-- Session stats -->
       <div class="flex justify-center gap-4 mb-8">
         <div class="rounded-xl border border-default bg-elevated px-6 py-4 text-center">
           <p class="text-2xl font-bold text-success">{{ knownCount }}</p>
@@ -215,13 +200,11 @@ const confidenceLabelFor = (c: number) => {
         @unknown="dontKnow"
       />
 
-      <!-- Confidence label -->
       <p class="text-center text-xs text-muted mt-3">
         {{ confidenceLabelFor(currentCard.confidence ?? 0) }}
         <span class="opacity-40">({{ currentCard.confidence ?? 0 }}/5)</span>
       </p>
 
-      <!-- Action buttons — always visible -->
       <div class="mt-4 flex flex-col items-center gap-3">
         <p class="text-sm text-muted">Did you know it?</p>
         <div class="flex gap-3 w-full max-w-sm">
@@ -257,7 +240,6 @@ const confidenceLabelFor = (c: number) => {
         </div>
       </div>
 
-      <!-- Card position hint -->
       <p class="text-center text-xs text-muted mt-6">
         Card {{ answeredCount + 1 }} of {{ totalCards }}
       </p>

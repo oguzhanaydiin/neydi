@@ -3,7 +3,7 @@ import type { Card } from '~/composables/useDecks'
 
 const route = useRoute()
 const router = useRouter()
-const { getDeck, addCard, updateCard, deleteCard, updateDeck } = useDecks()
+const { getDeck, addCard, updateCard, deleteCard, updateDeck, reorderCards } = useDecks()
 
 const deckId = route.params.id as string
 const deck = computed(() => getDeck(deckId))
@@ -12,7 +12,6 @@ watchEffect(() => {
   if (!deck.value) router.push('/')
 })
 
-// Card form (add + edit)
 const isCardFormOpen = ref(false)
 const editingCard = ref<Card | null>(null)
 
@@ -38,7 +37,6 @@ const handleCardSubmit = (front: string, back: string) => {
   }
 }
 
-// Card delete
 const deletingCardId = ref<string | null>(null)
 const isDeleteCardOpen = ref(false)
 
@@ -58,7 +56,29 @@ const handleDeleteCard = () => {
   }
 }
 
-// Deck edit
+const sortOptions = [
+  { label: 'My order', value: 'default' },
+  { label: 'Front A → Z', value: 'front-asc' },
+  { label: 'Front Z → A', value: 'front-desc' },
+  { label: 'Confidence: low first', value: 'confidence-asc' },
+  { label: 'Confidence: high first', value: 'confidence-desc' }
+]
+const sortBy = ref('default')
+
+const isDraggable = computed(() => sortBy.value === 'default')
+
+const sortedCards = computed(() => {
+  if (!deck.value) return []
+  const cards = [...deck.value.cards]
+  if (sortBy.value === 'front-asc') return cards.sort((a, b) => a.front.localeCompare(b.front))
+  if (sortBy.value === 'front-desc') return cards.sort((a, b) => b.front.localeCompare(a.front))
+  if (sortBy.value === 'confidence-asc') return cards.sort((a, b) => (a.confidence ?? 0) - (b.confidence ?? 0))
+  if (sortBy.value === 'confidence-desc') return cards.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))
+  return cards
+})
+
+const draggableCards = computed(() => deck.value?.cards ?? [])
+
 const isEditDeckOpen = ref(false)
 
 const handleEditDeck = (name: string, desc: string) => {
@@ -163,46 +183,56 @@ const handleEditDeck = (name: string, desc: string) => {
       v-show="deck.cards.length > 0"
       class="flex flex-col gap-3"
     >
-      <UCard
-        v-for="(card, index) in deck.cards"
-        :key="card.id"
+      <div class="flex items-center justify-between mb-1">
+        <p class="text-sm text-muted">
+          {{ deck.cards.length }} {{ deck.cards.length === 1 ? 'card' : 'cards' }}
+        </p>
+        <USelect
+          v-model="sortBy"
+          :items="sortOptions"
+          value-key="value"
+          label-key="label"
+          size="xs"
+          color="neutral"
+          variant="subtle"
+          icon="i-lucide-arrow-up-down"
+          class="w-48"
+        />
+      </div>
+
+      <DraggableList
+        v-if="isDraggable"
+        :items="draggableCards"
+        class="flex flex-col gap-3"
+        @reorder="reorderCards(deckId, $event)"
       >
-        <div
-          class="flex items-start gap-4"
+        <template #default="{ item, index, gripListeners }">
+          <UCard>
+            <CardRow
+              :card="item"
+              :index="index"
+              draggable
+              :grip-listeners="gripListeners"
+              @edit="openEditCard(item)"
+              @delete="openDeleteCard(item.id)"
+            />
+          </UCard>
+        </template>
+      </DraggableList>
+
+      <template v-else>
+        <UCard
+          v-for="card in sortedCards"
+          :key="card.id"
         >
-          <span class="text-xs font-mono text-muted pt-0.5 w-5 shrink-0">{{ index + 1 }}</span>
-          <div
-            class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0"
-          >
-            <div>
-              <p class="text-xs font-semibold uppercase tracking-wide text-muted mb-1">Front</p>
-              <p class="text-sm whitespace-pre-wrap wrap-break-word">{{ card.front }}</p>
-            </div>
-            <div>
-              <p class="text-xs font-semibold uppercase tracking-wide text-muted mb-1">Back</p>
-              <p class="text-sm whitespace-pre-wrap wrap-break-word">{{ card.back }}</p>
-            </div>
-          </div>
-          <div
-            class="flex gap-1 shrink-0"
-          >
-            <UButton
-              icon="i-lucide-pencil"
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              @click="openEditCard(card)"
-            />
-            <UButton
-              icon="i-lucide-trash-2"
-              size="xs"
-              color="error"
-              variant="ghost"
-              @click="openDeleteCard(card.id)"
-            />
-          </div>
-        </div>
-      </UCard>
+          <CardRow
+            :card="card"
+            :index="deck.cards.findIndex(c => c.id === card.id)"
+            @edit="openEditCard(card)"
+            @delete="openDeleteCard(card.id)"
+          />
+        </UCard>
+      </template>
     </div>
 
     <!-- Modals -->
