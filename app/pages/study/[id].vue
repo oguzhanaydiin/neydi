@@ -3,7 +3,9 @@ import type { Card } from '~/composables/useDecks'
 
 const route = useRoute()
 const router = useRouter()
-const { getDeck } = useDecks()
+const { getDeck, updateCardConfidence } = useDecks()
+
+const flashCardRef = ref<{ swipeOut: (d: 'left' | 'right') => void } | null>(null)
 
 const deckId = route.params.id as string
 const deck = computed(() => getDeck(deckId))
@@ -12,50 +14,93 @@ watchEffect(() => {
   if (!deck.value) router.push('/')
 })
 
+interface SessionCard extends Card {
+  sessionConfidence: number // confidence at start of this session
+}
+
 // Session state
-const queue = ref<Card[]>([])
+const queue = ref<SessionCard[]>([])
 const revealed = ref(false)
 const done = ref(false)
-const gotItCount = ref(0)
+const knownCount = ref(0)
+const unknownCount = ref(0)
 const totalCards = ref(0)
 
 const currentCard = computed(() => queue.value[0])
+const answeredCount = computed(() => knownCount.value + unknownCount.value)
 const progress = computed(() =>
-  totalCards.value === 0 ? 0 : Math.round((gotItCount.value / totalCards.value) * 100)
+  totalCards.value === 0 ? 0 : Math.round((answeredCount.value / totalCards.value) * 100)
 )
+
+// Cards that improved confidence this session
+const improvedCount = computed(() => {
+  if (!deck.value) return 0
+  return deck.value.cards.filter(c => (c.confidence ?? 0) > 0).length
+})
 
 const initSession = () => {
   if (!deck.value) return
-  queue.value = [...deck.value.cards].sort(() => Math.random() - 0.5)
-  totalCards.value = queue.value.length
-  gotItCount.value = 0
+  // Sort: lower confidence first, shuffle within same tier
+  const sorted = [...deck.value.cards].sort((a, b) => {
+    const diff = (a.confidence ?? 0) - (b.confidence ?? 0)
+    return diff !== 0 ? diff : Math.random() - 0.5
+  })
+  queue.value = sorted.map(c => ({ ...c, sessionConfidence: c.confidence ?? 0 }))
+  totalCards.value = sorted.length
+  knownCount.value = 0
+  unknownCount.value = 0
   revealed.value = false
   done.value = false
 }
 
 onMounted(initSession)
 
-const reveal = () => {
-  revealed.value = true
+const toggleReveal = () => {
+  revealed.value = !revealed.value
 }
 
-const again = () => {
+/**
+ * Confidence scale: 0=New · 1=Seen · 2=Learning · 3=Familiar · 4=Strong · 5=Mastered
+ *
+ * Know    → +1  (slow steady climb — needs 5 consecutive knows to reach mastered)
+ * Don't   → -2  (forgetting is a stronger signal than remembering, but floor at 0)
+ *
+ * Examples:
+ *   Mastered (5) + Don't Know → Strong (3)   — big drop, you slipped
+ *   Familiar (3) + Don't Know → Seen (1)     — meaningful setback
+ *   New (0)      + Don't Know → New (0)      — can't go below zero
+ *   Strong (4)   + Know       → Mastered (5) — one more to seal it
+ */
+const know = () => {
   const card = queue.value.shift()!
-  queue.value.push(card)
+  updateCardConfidence(deckId, card.id, Math.min(5, (card.confidence ?? 0) + 1))
+  knownCount.value++
   revealed.value = false
+  if (queue.value.length === 0) done.value = true
 }
 
-const gotIt = () => {
-  queue.value.shift()
-  gotItCount.value++
+const dontKnow = () => {
+  const card = queue.value.shift()!
+  updateCardConfidence(deckId, card.id, Math.max(0, (card.confidence ?? 0) - 2))
+  unknownCount.value++
   revealed.value = false
-  if (queue.value.length === 0) {
-    done.value = true
-  }
+  if (queue.value.length === 0) done.value = true
 }
+
+const handleKnow = () => flashCardRef.value?.swipeOut('right')
+const handleDontKnow = () => flashCardRef.value?.swipeOut('left')
 
 const restart = () => {
   initSession()
+}
+
+const confidenceLabelFor = (c: number) => {
+  if (c === 0) return 'New'
+  if (c === 1) return 'Seen'
+  if (c === 2) return 'Learning'
+  if (c === 3) return 'Familiar'
+  if (c === 4) return 'Strong'
+  return 'Mastered'
 }
 </script>
 
@@ -65,12 +110,8 @@ const restart = () => {
     class="py-10 max-w-2xl"
   >
     <!-- Header -->
-    <div
-      class="flex items-center justify-between gap-2 mb-6"
-    >
-      <div
-        class="min-w-0 flex-1"
-      >
+    <div class="flex items-center justify-between gap-2 mb-6">
+      <div class="min-w-0 flex-1">
         <UBreadcrumb
           :items="[{ label: 'Decks', to: '/' }, { label: deck.name, to: `/decks/${deckId}` }, { label: 'Study' }]"
         />
@@ -86,16 +127,33 @@ const restart = () => {
     </div>
 
     <!-- Progress -->
-    <div
-      class="mb-6"
-    >
-      <div
-        class="flex justify-between text-sm text-muted mb-2"
-      >
-        <span>{{ gotItCount }} / {{ totalCards }} cards learned</span>
+    <div class="mb-6">
+      <div class="flex justify-between text-sm text-muted mb-2">
+        <span class="flex items-center gap-3">
+          <span class="flex items-center gap-1 text-success">
+            <UIcon
+              name="i-lucide-check"
+              class="size-3.5"
+            />
+            {{ knownCount }} known
+          </span>
+          <span
+            v-if="unknownCount > 0"
+            class="flex items-center gap-1 text-error"
+          >
+            <UIcon
+              name="i-lucide-rotate-ccw"
+              class="size-3.5"
+            />
+            {{ unknownCount }} again
+          </span>
+        </span>
         <span>{{ queue.length }} remaining</span>
       </div>
-      <UProgress :model-value="progress" />
+      <UProgress
+        :model-value="progress"
+        color="success"
+      />
     </div>
 
     <!-- Done state -->
@@ -105,14 +163,27 @@ const restart = () => {
     >
       <div class="text-6xl mb-4">🎉</div>
       <h2 class="text-2xl font-bold mb-2">Session complete!</h2>
-      <p
-        class="text-muted mb-8"
-      >
+      <p class="text-muted mb-6">
         You went through all {{ totalCards }} cards in <strong>{{ deck.name }}</strong>.
       </p>
-      <div
-        class="flex justify-center gap-3"
-      >
+
+      <!-- Session stats -->
+      <div class="flex justify-center gap-4 mb-8">
+        <div class="rounded-xl border border-default bg-elevated px-6 py-4 text-center">
+          <p class="text-2xl font-bold text-success">{{ knownCount }}</p>
+          <p class="text-xs text-muted mt-1">Known</p>
+        </div>
+        <div class="rounded-xl border border-default bg-elevated px-6 py-4 text-center">
+          <p class="text-2xl font-bold text-error">{{ unknownCount }}</p>
+          <p class="text-xs text-muted mt-1">Didn't Know</p>
+        </div>
+        <div class="rounded-xl border border-default bg-elevated px-6 py-4 text-center">
+          <p class="text-2xl font-bold text-primary">{{ improvedCount }}</p>
+          <p class="text-xs text-muted mt-1">With Confidence</p>
+        </div>
+      </div>
+
+      <div class="flex justify-center gap-3">
         <UButton
           icon="i-lucide-rotate-ccw"
           color="neutral"
@@ -133,62 +204,62 @@ const restart = () => {
     <!-- Study card -->
     <template v-else-if="currentCard">
       <FlashCard
+        :key="currentCard.id"
+        ref="flashCardRef"
         :front="currentCard.front"
         :back="currentCard.back"
         :revealed="revealed"
-        @reveal="reveal"
+        :confidence="currentCard.confidence"
+        @toggle="toggleReveal"
+        @known="know"
+        @unknown="dontKnow"
       />
 
-      <div
-        class="mt-6 flex flex-col items-center gap-3"
-      >
-        <template v-if="!revealed">
-          <UButton
-            size="xl"
-            class="w-full max-w-sm"
-            icon="i-lucide-eye"
-            @click="reveal"
-          >
-            Reveal Answer
-          </UButton>
-        </template>
-        <template v-else>
-          <p class="text-sm text-muted">How did you do?</p>
-          <div
-            class="flex gap-3 w-full max-w-sm"
-          >
+      <!-- Confidence label -->
+      <p class="text-center text-xs text-muted mt-3">
+        {{ confidenceLabelFor(currentCard.confidence ?? 0) }}
+        <span class="opacity-40">({{ currentCard.confidence ?? 0 }}/5)</span>
+      </p>
+
+      <!-- Action buttons — always visible -->
+      <div class="mt-4 flex flex-col items-center gap-3">
+        <p class="text-sm text-muted">Did you know it?</p>
+        <div class="flex gap-3 w-full max-w-sm">
+          <div class="flex-1 flex flex-col items-center gap-1">
             <UButton
               size="xl"
               color="error"
               variant="subtle"
-              class="flex-1"
-              icon="i-lucide-rotate-ccw"
-              @click="again"
+              class="w-full"
+              icon="i-lucide-x"
+              @click="handleDontKnow"
             >
-              Again
+              Don't Know
             </UButton>
+            <span class="text-xs text-error/60">
+              → {{ confidenceLabelFor(Math.max(0, (currentCard.confidence ?? 0) - 2)) }}
+            </span>
+          </div>
+          <div class="flex-1 flex flex-col items-center gap-1">
             <UButton
               size="xl"
               color="success"
-              class="flex-1"
+              class="w-full"
               icon="i-lucide-check"
-              @click="gotIt"
+              @click="handleKnow"
             >
-              Got it
+              Know
             </UButton>
+            <span class="text-xs text-success/60">
+              → {{ confidenceLabelFor(Math.min(5, (currentCard.confidence ?? 0) + 1)) }}
+            </span>
           </div>
-        </template>
+        </div>
       </div>
 
-      <!-- Card counter -->
-      <p
-        class="text-center text-xs text-muted mt-6"
-      >
-        Card {{ gotItCount + 1 }} of {{ totalCards }}
-        <span
-          v-if="queue.length > totalCards - gotItCount"
-          class="ml-1 text-warning"
-        >(repeating)</span>
+      <!-- Card position hint -->
+      <p class="text-center text-xs text-muted mt-6">
+        Card {{ answeredCount + 1 }} of {{ totalCards }}
       </p>
     </template>
   </UContainer>

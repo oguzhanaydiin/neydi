@@ -4,6 +4,7 @@ export interface Card {
   id: string
   front: string
   back: string
+  confidence: number // 0 = new, 5 = mastered
 }
 
 export interface Deck {
@@ -69,11 +70,21 @@ export const useDecks = () => {
     const card: Card = {
       id: crypto.randomUUID(),
       front: front.trim(),
-      back: back.trim()
+      back: back.trim(),
+      confidence: 0
     }
     deck.cards.push(card)
     persist()
     return card
+  }
+
+  const updateCardConfidence = (deckId: string, cardId: string, confidence: number) => {
+    const deck = getDeck(deckId)
+    if (!deck) return
+    const card = deck.cards.find(c => c.id === cardId)
+    if (!card) return
+    card.confidence = Math.max(0, Math.min(5, confidence))
+    persist()
   }
 
   const updateCard = (deckId: string, cardId: string, front: string, back: string) => {
@@ -101,6 +112,7 @@ export const useDecks = () => {
     deleteDeck,
     addCard,
     updateCard,
+    updateCardConfidence,
     deleteCard
   }
 }

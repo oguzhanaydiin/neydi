@@ -1,4 +1,6 @@
 <script setup>
+import { CUSTOM_THEMES } from '~/composables/useTheme'
+
 const { theme, setTheme } = useTheme()
 
 useHead({
