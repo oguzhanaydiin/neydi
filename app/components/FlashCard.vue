@@ -19,12 +19,20 @@ const startX = ref(0)
 const hasDragged = ref(false)
 const isLeaving = ref(false)
 const leaveDirection = ref<'left' | 'right' | null>(null)
+const leaveFromX = ref(0)
+const leaveFromY = ref(0)
 
 const SWIPE_THRESHOLD = 80
 
 // --- Drag styles ---
 const wrapperStyle = computed(() => {
-  if (isLeaving.value) return {}
+  if (isLeaving.value) {
+    // Pass captured release position as CSS vars for the keyframe `from` state
+    return {
+      '--leave-x': `${leaveFromX.value}px`,
+      '--leave-y': `${leaveFromY.value}px`
+    }
+  }
   if (!isDragging.value && dragX.value === 0) return {}
   const dragY = Math.abs(dragX.value) * 0.15
   return {
@@ -89,11 +97,15 @@ const onPointerUp = () => {
 
 // --- Swipe out (called externally via ref OR from gesture) ---
 const swipeOut = (direction: 'left' | 'right') => {
+  // Capture where the card is right now so the animation starts from there
+  leaveFromX.value = dragX.value
+  leaveFromY.value = Math.abs(dragX.value) * 0.15
+  dragX.value = 0
   isLeaving.value = true
   leaveDirection.value = direction
-  dragX.value = 0
   setTimeout(() => {
-    emit(direction === 'right' ? 'known' : 'unknown')
+    if (direction === 'right') emit('known')
+    else emit('unknown')
   }, 320)
 }
 
@@ -160,7 +172,10 @@ defineExpose({ swipeOut })
           </p>
 
           <p class="text-xs text-muted absolute bottom-4 flex items-center gap-1.5">
-            <UIcon name="i-lucide-refresh-cw" class="size-3" />
+            <UIcon
+              name="i-lucide-refresh-cw"
+              class="size-3"
+            />
             Tap to flip · swipe to answer
           </p>
         </div>
@@ -187,7 +202,10 @@ defineExpose({ swipeOut })
           </p>
 
           <p class="text-xs text-muted absolute bottom-4 flex items-center gap-1.5">
-            <UIcon name="i-lucide-refresh-cw" class="size-3" />
+            <UIcon
+              name="i-lucide-refresh-cw"
+              class="size-3"
+            />
             Tap to flip back
           </p>
         </div>
@@ -205,12 +223,20 @@ defineExpose({ swipeOut })
 }
 
 @keyframes swipe-right {
+  from {
+    transform: translateX(var(--leave-x, 0px)) translateY(var(--leave-y, 0px));
+    opacity: 1;
+  }
   to {
     transform: translateX(140%) translateY(20%);
     opacity: 0;
   }
 }
 @keyframes swipe-left {
+  from {
+    transform: translateX(var(--leave-x, 0px)) translateY(var(--leave-y, 0px));
+    opacity: 1;
+  }
   to {
     transform: translateX(-140%) translateY(20%);
     opacity: 0;
