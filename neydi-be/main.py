@@ -5,14 +5,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.core.config import settings
-from app.core.database import engine
+from app.core.database import Base, engine
+from app.models import User  # noqa: F401 — ensures model is registered with Base
+from app.routes import user_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with engine.connect() as conn:
+    async with engine.begin() as conn:
         await conn.execute(text("SELECT 1"))
-    print("✓ Database connection successful")
+        await conn.run_sync(Base.metadata.create_all)
+    print("✓ Database connection successful, tables ensured")
     yield
     await engine.dispose()
 
@@ -31,6 +34,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+app.include_router(user_router)
 
 
 @app.get("/")
