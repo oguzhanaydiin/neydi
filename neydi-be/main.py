@@ -16,3 +16,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/")
+def root():
+    return {"app": settings.APP_NAME, "version": settings.APP_VERSION, "status": "ok"}
