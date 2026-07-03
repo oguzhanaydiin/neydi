@@ -2,6 +2,7 @@
 import { CUSTOM_THEMES } from '~/composables/useTheme'
 
 const { theme, setTheme } = useTheme()
+const { isLoggedIn, user, logout, restoreSession } = useAuth()
 
 useHead({
   meta: [
@@ -17,12 +18,13 @@ useHead({
 })
 
 useSeoMeta({
-  title: 'neydi — flashcards',
+  title: 'neydi - flashcards',
   description: 'A simple flashcard app to help you remember things.'
 })
 
 onMounted(() => {
   setTheme(theme.value)
+  restoreSession()
 })
 </script>
 
@@ -39,7 +41,30 @@ onMounted(() => {
       </template>
 
       <template #right>
-        <ThemeSwitcher />
+        <div class="flex items-center gap-2">
+          <template v-if="isLoggedIn">
+            <span class="text-sm text-muted hidden sm:inline">{{ user?.username }}</span>
+            <UButton
+              variant="ghost"
+              size="sm"
+              icon="i-lucide-log-out"
+              @click="logout"
+            >
+              <span class="hidden sm:inline">Sign out</span>
+            </UButton>
+          </template>
+          <template v-else>
+            <UButton
+              to="/login"
+              variant="outline"
+              size="sm"
+              class="px-3 py-1.5 text-sm"
+            >
+              Sign in
+            </UButton>
+          </template>
+          <ThemeSwitcher />
+        </div>
       </template>
     </UHeader>
 
@@ -52,7 +77,7 @@ onMounted(() => {
         <p
           class="text-sm text-muted"
         >
-          neydi — remember more, forget less
+          neydi - remember more, forget less
         </p>
       </template>
     </UFooter>
