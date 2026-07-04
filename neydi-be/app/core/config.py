@@ -13,7 +13,7 @@ class Settings(BaseSettings):
 
     JWT_SECRET: str
     JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRE_MINUTES: int = 60 * 24
+    JWT_EXPIRE_MINUTES: int = 60 * 24 * 90
 
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
