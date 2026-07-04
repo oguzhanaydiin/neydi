@@ -22,12 +22,11 @@ export const useAuth = () => {
   const { public: { apiBase } } = useRuntimeConfig()
 
   const user = useState<UserResponse | null>('auth:user', () => null)
-  const token = useState<string | null>('auth:token', () => {
-    if (import.meta.client) {
-      return localStorage.getItem('auth:token')
-    }
-    return null
-  })
+  // NOTE: don't read localStorage in the useState initializer. On the client the
+  // initializer isn't re-run during hydration (the value is restored from the SSR
+  // payload as null), so the token would always be lost on refresh. It's hydrated
+  // from localStorage in restoreSession() instead, which runs client-side onMounted.
+  const token = useState<string | null>('auth:token', () => null)
 
   const isLoggedIn = computed(() => !!token.value)
 
@@ -71,6 +70,10 @@ export const useAuth = () => {
 
   // Restore user from stored token on page refresh
   const restoreSession = async () => {
+    // Hydrate token from localStorage on the client (see note above).
+    if (import.meta.client && !token.value) {
+      token.value = localStorage.getItem('auth:token')
+    }
     if (!token.value || user.value) return
     try {
       user.value = await $fetch<UserResponse>(`${apiBase}/auth/me`, {
