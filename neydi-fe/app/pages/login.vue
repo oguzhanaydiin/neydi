@@ -6,6 +6,7 @@ definePageMeta({ layout: 'auth' })
 useSeoMeta({ title: 'Sign in - neydi' })
 
 const { login } = useAuth()
+const { migrateLocalDecks, loadDecks } = useDecks()
 const toast = useToast()
 const router = useRouter()
 
@@ -29,6 +30,8 @@ const onSubmit = async () => {
   loading.value = true
   try {
     await login(form)
+    await migrateLocalDecks()
+    await loadDecks()
     toast.add({ title: 'Welcome back!', color: 'success' })
     await router.push('/')
   } catch (err: unknown) {

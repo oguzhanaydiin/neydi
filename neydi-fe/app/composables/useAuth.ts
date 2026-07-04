@@ -65,6 +65,9 @@ export const useAuth = () => {
     if (import.meta.client) {
       localStorage.removeItem('auth:token')
     }
+    // Clear server decks from state so the next guest session starts clean
+    const decks = useState<unknown[]>('decks')
+    decks.value = []
     navigateTo('/login')
   }
 

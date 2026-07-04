@@ -16,15 +16,16 @@ export interface Deck {
 }
 
 export const useDecks = () => {
-  const decks = useState<Deck[]>('decks', () => {
-    if (import.meta.client) {
-      try {
-        const stored = localStorage.getItem(STORAGE_KEY)
-        if (stored) return JSON.parse(stored) as Deck[]
-      } catch {}
-    }
-    return []
-  })
+  const { public: { apiBase } } = useRuntimeConfig()
+  const { isLoggedIn, token } = useAuth()
+
+  const decks = useState<Deck[]>('decks', () => [])
+
+  const authHeaders = computed(() => ({
+    Authorization: `Bearer ${token.value}`
+  }))
+
+  // --- Local persistence (guest only) ---
 
   const persist = () => {
     if (import.meta.client) {
@@ -32,83 +33,194 @@ export const useDecks = () => {
     }
   }
 
+  // --- Server sync (authenticated) ---
+
+  // Fetch all decks from server. Called after restoreSession() in app.vue.
+  const loadDecks = async () => {
+    const data = await $fetch<Deck[]>(`${apiBase}/decks`, {
+      headers: authHeaders.value
+    })
+    decks.value = data
+  }
+
+  // Migrate guest decks to server right after login. Local always wins on conflict.
+  const migrateLocalDecks = async () => {
+    if (!import.meta.client) return
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (!stored) return
+    let localDecks: Deck[]
+    try { localDecks = JSON.parse(stored) as Deck[] } catch { return }
+    if (localDecks.length === 0) return
+
+    // PUT overwrites if the deck already exists in DB, 404 means create it fresh.
+    await Promise.allSettled(localDecks.map(async (deck) => {
+      try {
+        await $fetch(`${apiBase}/decks/${deck.id}`, {
+          method: 'PUT',
+          headers: authHeaders.value,
+          body: deck
+        })
+      } catch (err) {
+        const status = (err as { status?: number, statusCode?: number })?.status
+          ?? (err as { status?: number, statusCode?: number })?.statusCode
+        if (status === 404) {
+          await $fetch(`${apiBase}/decks`, {
+            method: 'POST',
+            headers: authHeaders.value,
+            body: deck
+          })
+        }
+      }
+    }))
+
+    localStorage.removeItem(STORAGE_KEY)
+  }
+
+  // --- Deck CRUD ---
+
   const getDeck = (id: string): Deck | undefined =>
     decks.value.find(d => d.id === id)
 
-  const createDeck = (name: string, description?: string): Deck => {
-    const deck: Deck = {
+  const createDeck = async (name: string, description?: string): Promise<Deck> => {
+    const payload: Deck = {
       id: crypto.randomUUID(),
       name: name.trim(),
       description: description?.trim() || undefined,
       cards: [],
       createdAt: Date.now()
     }
-    decks.value.push(deck)
+    if (isLoggedIn.value) {
+      const deck = await $fetch<Deck>(`${apiBase}/decks`, {
+        method: 'POST',
+        headers: authHeaders.value,
+        body: payload
+      })
+      decks.value.push(deck)
+      return deck
+    }
+    decks.value.push(payload)
     persist()
-    return deck
+    return payload
   }
 
-  const updateDeck = (id: string, name: string, description?: string) => {
+  const updateDeck = async (id: string, name: string, description?: string) => {
     const deck = getDeck(id)
     if (!deck) return
+    if (isLoggedIn.value) {
+      await $fetch(`${apiBase}/decks/${id}`, {
+        method: 'PATCH',
+        headers: authHeaders.value,
+        body: { name: name.trim(), description: description?.trim() || undefined }
+      })
+    }
     deck.name = name.trim()
     deck.description = description?.trim() || undefined
-    persist()
+    if (!isLoggedIn.value) persist()
   }
 
-  const deleteDeck = (id: string) => {
+  const deleteDeck = async (id: string) => {
+    if (isLoggedIn.value) {
+      await $fetch(`${apiBase}/decks/${id}`, {
+        method: 'DELETE',
+        headers: authHeaders.value
+      })
+    }
     const idx = decks.value.findIndex(d => d.id === id)
     if (idx !== -1) {
       decks.value.splice(idx, 1)
-      persist()
+      if (!isLoggedIn.value) persist()
     }
   }
 
-  const addCard = (deckId: string, front: string, back: string): Card | undefined => {
+  // --- Card CRUD ---
+
+  const addCard = async (deckId: string, front: string, back: string): Promise<Card | undefined> => {
     const deck = getDeck(deckId)
     if (!deck) return
-    const card: Card = {
+    const payload: Card = {
       id: crypto.randomUUID(),
       front: front.trim(),
       back: back.trim(),
       confidence: 0
     }
-    deck.cards.push(card)
+    if (isLoggedIn.value) {
+      const card = await $fetch<Card>(`${apiBase}/decks/${deckId}/cards`, {
+        method: 'POST',
+        headers: authHeaders.value,
+        body: payload
+      })
+      deck.cards.push(card)
+      return card
+    }
+    deck.cards.push(payload)
     persist()
-    return card
+    return payload
   }
 
-  const reorderCards = (deckId: string, newOrder: Card[]) => {
+  const updateCard = async (deckId: string, cardId: string, front: string, back: string) => {
     const deck = getDeck(deckId)
     if (!deck) return
-    deck.cards = newOrder
-    persist()
+    const card = deck.cards.find(c => c.id === cardId)
+    if (!card) return
+    if (isLoggedIn.value) {
+      await $fetch(`${apiBase}/decks/${deckId}/cards/${cardId}`, {
+        method: 'PATCH',
+        headers: authHeaders.value,
+        body: { front: front.trim(), back: back.trim() }
+      })
+    }
+    card.front = front.trim()
+    card.back = back.trim()
+    if (!isLoggedIn.value) persist()
   }
+
+  const deleteCard = async (deckId: string, cardId: string) => {
+    const deck = getDeck(deckId)
+    if (!deck) return
+    if (isLoggedIn.value) {
+      await $fetch(`${apiBase}/decks/${deckId}/cards/${cardId}`, {
+        method: 'DELETE',
+        headers: authHeaders.value
+      })
+    }
+    deck.cards = deck.cards.filter(c => c.id !== cardId)
+    if (!isLoggedIn.value) persist()
+  }
+
+  // Confidence and reorder are fire-and-forget for authenticated users (non-critical UX).
+  // Local state is updated optimistically before the API call.
 
   const updateCardConfidence = (deckId: string, cardId: string, confidence: number) => {
     const deck = getDeck(deckId)
     if (!deck) return
     const card = deck.cards.find(c => c.id === cardId)
     if (!card) return
-    card.confidence = Math.max(0, Math.min(5, confidence))
-    persist()
+    const clamped = Math.max(0, Math.min(5, confidence))
+    card.confidence = clamped
+    if (isLoggedIn.value) {
+      $fetch(`${apiBase}/decks/${deckId}/cards/${cardId}/confidence`, {
+        method: 'PATCH',
+        headers: authHeaders.value,
+        body: { confidence: clamped }
+      }).catch(() => {})
+    } else {
+      persist()
+    }
   }
 
-  const updateCard = (deckId: string, cardId: string, front: string, back: string) => {
+  const reorderCards = (deckId: string, newOrder: Card[]) => {
     const deck = getDeck(deckId)
     if (!deck) return
-    const card = deck.cards.find(c => c.id === cardId)
-    if (!card) return
-    card.front = front.trim()
-    card.back = back.trim()
-    persist()
-  }
-
-  const deleteCard = (deckId: string, cardId: string) => {
-    const deck = getDeck(deckId)
-    if (!deck) return
-    deck.cards = deck.cards.filter(c => c.id !== cardId)
-    persist()
+    deck.cards = newOrder
+    if (isLoggedIn.value) {
+      $fetch(`${apiBase}/decks/${deckId}/cards/reorder`, {
+        method: 'PATCH',
+        headers: authHeaders.value,
+        body: { order: newOrder.map(c => c.id) }
+      }).catch(() => {})
+    } else {
+      persist()
+    }
   }
 
   return {
@@ -121,6 +233,8 @@ export const useDecks = () => {
     updateCard,
     updateCardConfidence,
     reorderCards,
-    deleteCard
+    deleteCard,
+    loadDecks,
+    migrateLocalDecks
   }
 }

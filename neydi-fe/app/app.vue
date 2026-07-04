@@ -3,6 +3,7 @@ import { CUSTOM_THEMES } from '~/composables/useTheme'
 
 const { theme, setTheme } = useTheme()
 const { isLoggedIn, user, logout, restoreSession } = useAuth()
+const { loadDecks } = useDecks()
 
 useHead({
   meta: [
@@ -22,9 +23,12 @@ useSeoMeta({
   description: 'A simple flashcard app to help you remember things.'
 })
 
-onMounted(() => {
+onMounted(async () => {
   setTheme(theme.value)
-  restoreSession()
+  await restoreSession()
+  if (isLoggedIn.value) {
+    await loadDecks()
+  }
 })
 </script>
 

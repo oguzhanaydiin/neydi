@@ -12,13 +12,13 @@ const openDelete = (id: string) => {
 
 watch(isDeleteOpen, (val) => { if (!val) deletingDeckId.value = null })
 
-const handleCreate = (name: string, desc: string) => {
-  createDeck(name, desc)
+const handleCreate = async (name: string, desc: string) => {
+  await createDeck(name, desc)
 }
 
-const handleDelete = () => {
+const handleDelete = async () => {
   if (deletingDeckId.value) {
-    deleteDeck(deletingDeckId.value)
+    await deleteDeck(deletingDeckId.value)
     isDeleteOpen.value = false
   }
 }
@@ -38,7 +38,7 @@ const handleDelete = () => {
       <UButton
         icon="i-lucide-plus"
         size="lg"
-        @click="isDeckFormOpen = true"
+        @click="() => { isDeckFormOpen = true }"
       >
         New Deck
       </UButton>
@@ -56,7 +56,7 @@ const handleDelete = () => {
         <template #actions>
           <UButton
             icon="i-lucide-plus"
-            @click="isDeckFormOpen = true"
+            @click="() => { isDeckFormOpen = true }"
           >
             Create a deck
           </UButton>
