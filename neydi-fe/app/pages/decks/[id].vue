@@ -29,11 +29,11 @@ watch(isCardFormOpen, (val) => {
   if (!val) editingCard.value = null
 })
 
-const handleCardSubmit = (front: string, back: string) => {
+const handleCardSubmit = async (front: string, back: string) => {
   if (editingCard.value) {
-    updateCard(deckId, editingCard.value.id, front, back)
+    await updateCard(deckId, editingCard.value.id, front, back)
   } else {
-    addCard(deckId, front, back)
+    await addCard(deckId, front, back)
   }
 }
 
@@ -49,9 +49,9 @@ watch(isDeleteCardOpen, (val) => {
   if (!val) deletingCardId.value = null
 })
 
-const handleDeleteCard = () => {
+const handleDeleteCard = async () => {
   if (deletingCardId.value) {
-    deleteCard(deckId, deletingCardId.value)
+    await deleteCard(deckId, deletingCardId.value)
     isDeleteCardOpen.value = false
   }
 }
@@ -81,8 +81,8 @@ const draggableCards = computed(() => deck.value?.cards ?? [])
 
 const isEditDeckOpen = ref(false)
 
-const handleEditDeck = (name: string, desc: string) => {
-  updateDeck(deckId, name, desc)
+const handleEditDeck = async (name: string, desc: string) => {
+  await updateDeck(deckId, name, desc)
 }
 </script>
 
@@ -115,7 +115,7 @@ const handleEditDeck = (name: string, desc: string) => {
               size="xs"
               color="neutral"
               variant="ghost"
-              @click="isEditDeckOpen = true"
+              @click="() => { isEditDeckOpen = true }"
             />
           </h1>
           <p
