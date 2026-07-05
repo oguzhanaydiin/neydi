@@ -6,8 +6,8 @@ from sqlalchemy import text
 
 from app.core.config import settings
 from app.core.database import Base, engine
-from app.models import User  # noqa: F401 — ensures model is registered with Base
-from app.routes import auth_router, user_router
+from app.models import Card, Deck, User  # noqa: F401 — ensures models are registered with Base
+from app.routes import auth_router, decks_router, user_router
 
 
 @asynccontextmanager
@@ -38,6 +38,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(user_router)
+app.include_router(decks_router)
 
 
 @app.get("/")
