@@ -68,6 +68,7 @@ async def client():
 
 
 _USER = {"email": "alice@test.com", "username": "alice", "password": "alicepass123"}
+_SUPERADMIN_USER = {"email": "admin@test.com", "username": "neydi", "password": "adminpass123"}
 
 
 @pytest_asyncio.fixture
@@ -76,6 +77,33 @@ async def auth_client(client: AsyncClient):
     resp = await client.post(
         "/auth/token",
         content=f"username={_USER['email']}&password={_USER['password']}",
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    token = resp.json()["access_token"]
+    client.headers["Authorization"] = f"Bearer {token}"
+    return client
+
+
+@pytest_asyncio.fixture
+async def superadmin_client(client: AsyncClient):
+    """Registers a user then promotes them to superadmin directly in the DB."""
+    from sqlalchemy import select, update
+    from app.models.user import User, UserRole
+
+    await client.post("/auth/register", json=_SUPERADMIN_USER)
+
+    # Promote to superadmin via the test DB session.
+    async with TestSession() as session:
+        await session.execute(
+            update(User)
+            .where(User.email == _SUPERADMIN_USER["email"])
+            .values(role=UserRole.SUPERADMIN)
+        )
+        await session.commit()
+
+    resp = await client.post(
+        "/auth/token",
+        content=f"username={_SUPERADMIN_USER['email']}&password={_SUPERADMIN_USER['password']}",
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
     token = resp.json()["access_token"]

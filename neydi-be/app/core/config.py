@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int
     POSTGRES_DB: str
 
+    # Optional superadmin bootstrap — set both to auto-create the superadmin account on startup.
+    SUPERADMIN_EMAIL: str | None = None
+    SUPERADMIN_PASSWORD: str | None = None
+    SUPERADMIN_USERNAME: str = "neydi"
+
     @property
     def DATABASE_URL(self) -> str:
         return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
