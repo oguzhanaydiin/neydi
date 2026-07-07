@@ -22,6 +22,7 @@ class Deck(Base):
     # Stored as milliseconds epoch, matching the frontend's Date.now() format.
     created_at_ms: Mapped[int] = mapped_column(BigInteger, nullable=False)
 
+    owner: Mapped["User"] = relationship("User")
     cards: Mapped[list["Card"]] = relationship(
         "Card",
         back_populates="deck",

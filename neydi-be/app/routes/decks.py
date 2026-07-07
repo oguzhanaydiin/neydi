@@ -17,6 +17,7 @@ from app.schemas.deck import (
     DeckIn,
     DeckOut,
     DeckPatch,
+    DeckPublicOut,
     ReorderPatch,
 )
 
@@ -51,6 +52,37 @@ def _build_cards(card_inputs: list[CardIn], deck_id: uuid.UUID) -> list[Card]:
         )
         for i, c in enumerate(card_inputs)
     ]
+
+
+# ---------------------------------------------------------------------------
+# Public deck discovery
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/explore",
+    response_model=list[DeckPublicOut],
+    summary="Explore decks",
+    description=(
+        "Returns decks from all users, newest first. "
+        "Each deck includes its owner's username and role — "
+        "use `owner.role == 'superadmin'` to badge official decks on the frontend. "
+        "No authentication required."
+    ),
+)
+async def explore_decks(
+    skip: int = 0,
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Deck)
+        .options(selectinload(Deck.cards), selectinload(Deck.owner))
+        .order_by(Deck.created_at_ms.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    return result.scalars().all()
 
 
 # ---------------------------------------------------------------------------
