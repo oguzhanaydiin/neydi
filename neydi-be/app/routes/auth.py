@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import hash_password, verify_password
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.user import UserCreate, UserResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -54,6 +54,17 @@ async def get_current_user(
     if user is None or not user.is_active:
         raise credentials_error
     return user
+
+
+async def get_superadmin_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if current_user.role != UserRole.SUPERADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Superadmin access required",
+        )
+    return current_user
 
 
 @router.post(
