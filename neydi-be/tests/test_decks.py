@@ -166,3 +166,51 @@ async def test_delete_nonexistent_card_returns_404(auth_client: AsyncClient):
     deck = await _create_deck(auth_client)
     resp = await auth_client.delete(f"/decks/{deck['id']}/cards/{uuid.uuid4()}")
     assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Explore endpoint
+# ---------------------------------------------------------------------------
+
+
+async def test_explore_empty(client: AsyncClient):
+    resp = await client.get("/decks/explore")
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+async def test_explore_no_auth_required(client: AsyncClient, auth_client: AsyncClient):
+    await _create_deck(auth_client)
+    resp = await client.get("/decks/explore")
+    assert resp.status_code == 200
+    assert len(resp.json()) == 1
+
+
+async def test_explore_regular_deck_is_not_official(client: AsyncClient, auth_client: AsyncClient):
+    await _create_deck(auth_client, name="Alice's Deck")
+    deck = client.get("/decks/explore")
+    resp = await deck
+    assert resp.json()[0]["is_official"] is False
+    assert resp.json()[0]["owner_username"] == "alice"
+
+
+async def test_explore_superadmin_deck_is_official(
+    client: AsyncClient, superadmin_client: AsyncClient
+):
+    await superadmin_client.post("/decks", json={"name": "Official Deck"})
+    resp = await client.get("/decks/explore")
+    assert resp.json()[0]["is_official"] is True
+    assert resp.json()[0]["owner_username"] == "neydi"
+
+
+async def test_explore_returns_all_users_decks(
+    client: AsyncClient, auth_client: AsyncClient, superadmin_client: AsyncClient
+):
+    await _create_deck(auth_client, name="Alice's Deck")
+    await superadmin_client.post("/decks", json={"name": "Official Deck"})
+    resp = await client.get("/decks/explore")
+    assert len(resp.json()) == 2
+    official = [d for d in resp.json() if d["is_official"]]
+    regular = [d for d in resp.json() if not d["is_official"]]
+    assert len(official) == 1
+    assert len(regular) == 1

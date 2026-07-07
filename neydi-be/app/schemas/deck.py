@@ -3,8 +3,6 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.models.user import UserRole
-
 
 class CardOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -26,24 +24,16 @@ class DeckOut(BaseModel):
     createdAt: int = Field(validation_alias="created_at_ms")
 
 
-class DeckOwnerOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    username: str
-    role: UserRole
-
-
 class DeckPublicOut(BaseModel):
-    """Deck shape returned by the public /decks/explore endpoint. Includes owner info."""
-
-    model_config = ConfigDict(from_attributes=True)
+    """Deck shape returned by the public /decks/explore endpoint."""
 
     id: uuid.UUID
     name: str
     description: Optional[str] = None
     cards: list[CardOut] = []
-    createdAt: int = Field(validation_alias="created_at_ms")
-    owner: DeckOwnerOut
+    createdAt: int
+    owner_username: str
+    is_official: bool
 
 
 class CardIn(BaseModel):

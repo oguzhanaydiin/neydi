@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.models.deck import Card, Deck
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.routes.auth import get_current_user
 from app.schemas.deck import (
     CardIn,
@@ -82,7 +82,19 @@ async def explore_decks(
         .offset(skip)
         .limit(limit)
     )
-    return result.scalars().all()
+    decks = result.scalars().all()
+    return [
+        DeckPublicOut(
+            id=deck.id,
+            name=deck.name,
+            description=deck.description,
+            cards=deck.cards,
+            createdAt=deck.created_at_ms,
+            owner_username=deck.owner.username,
+            is_official=deck.owner.role == UserRole.SUPERADMIN,
+        )
+        for deck in decks
+    ]
 
 
 # ---------------------------------------------------------------------------
