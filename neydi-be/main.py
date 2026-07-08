@@ -2,12 +2,41 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.database import Base, engine
+from app.core.database import Base, SessionLocal, engine
+from app.core.security import hash_password
 from app.models import Card, Deck, User  # noqa: F401 — ensures models are registered with Base
+from app.models.user import UserRole
 from app.routes import auth_router, decks_router, user_router
+
+
+async def _ensure_superadmin(db: AsyncSession) -> None:
+    """Create the superadmin account if SUPERADMIN_EMAIL and SUPERADMIN_PASSWORD are set."""
+    if not settings.SUPERADMIN_EMAIL or not settings.SUPERADMIN_PASSWORD:
+        return
+
+    result = await db.execute(select(User).where(User.email == settings.SUPERADMIN_EMAIL))
+    existing = result.scalar_one_or_none()
+
+    if existing is None:
+        admin = User(
+            email=settings.SUPERADMIN_EMAIL,
+            username=settings.SUPERADMIN_USERNAME,
+            hashed_password=hash_password(settings.SUPERADMIN_PASSWORD),
+            role=UserRole.SUPERADMIN,
+        )
+        db.add(admin)
+        await db.commit()
+        print(f"✓ Superadmin account created ({settings.SUPERADMIN_EMAIL})")
+    elif existing.role != UserRole.SUPERADMIN:
+        existing.role = UserRole.SUPERADMIN
+        await db.commit()
+        print(f"✓ Superadmin role granted to existing account ({settings.SUPERADMIN_EMAIL})")
+    else:
+        print(f"✓ Superadmin account already exists ({settings.SUPERADMIN_EMAIL})")
 
 
 @asynccontextmanager
@@ -16,6 +45,10 @@ async def lifespan(app: FastAPI):
         await conn.execute(text("SELECT 1"))
         await conn.run_sync(Base.metadata.create_all)
     print("✓ Database connection successful, tables ensured")
+
+    async with SessionLocal() as db:
+        await _ensure_superadmin(db)
+
     yield
     await engine.dispose()
 

@@ -3,6 +3,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, field_validator
 
+from app.models.user import UserRole
+
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -55,6 +57,7 @@ class UserResponse(BaseModel):
     email: str
     username: str
     is_active: bool
+    role: UserRole
     created_at: datetime
     updated_at: datetime
 

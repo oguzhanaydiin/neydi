@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.models.deck import Card, Deck
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.routes.auth import get_current_user
 from app.schemas.deck import (
     CardIn,
@@ -17,6 +17,7 @@ from app.schemas.deck import (
     DeckIn,
     DeckOut,
     DeckPatch,
+    DeckPublicOut,
     ReorderPatch,
 )
 
@@ -50,6 +51,49 @@ def _build_cards(card_inputs: list[CardIn], deck_id: uuid.UUID) -> list[Card]:
             position=i,
         )
         for i, c in enumerate(card_inputs)
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Public deck discovery
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/explore",
+    response_model=list[DeckPublicOut],
+    summary="Explore decks",
+    description=(
+        "Returns decks from all users, newest first. "
+        "Each deck includes its owner's username and role — "
+        "use `owner.role == 'superadmin'` to badge official decks on the frontend. "
+        "No authentication required."
+    ),
+)
+async def explore_decks(
+    skip: int = 0,
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Deck)
+        .options(selectinload(Deck.cards), selectinload(Deck.owner))
+        .order_by(Deck.created_at_ms.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    decks = result.scalars().all()
+    return [
+        DeckPublicOut(
+            id=deck.id,
+            name=deck.name,
+            description=deck.description,
+            cards=deck.cards,
+            createdAt=deck.created_at_ms,
+            owner_username=deck.owner.username,
+            is_official=deck.owner.role == UserRole.SUPERADMIN,
+        )
+        for deck in decks
     ]
 
 

@@ -68,6 +68,7 @@ async def client():
 
 
 _USER = {"email": "alice@test.com", "username": "alice", "password": "alicepass123"}
+_SUPERADMIN_USER = {"email": "admin@test.com", "username": "neydi", "password": "adminpass123"}
 
 
 @pytest_asyncio.fixture
@@ -81,3 +82,29 @@ async def auth_client(client: AsyncClient):
     token = resp.json()["access_token"]
     client.headers["Authorization"] = f"Bearer {token}"
     return client
+
+
+@pytest_asyncio.fixture
+async def superadmin_client():
+    """Independent client logged in as the superadmin (its own AsyncClient instance)."""
+    from sqlalchemy import update
+    from app.models.user import User, UserRole
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        await ac.post("/auth/register", json=_SUPERADMIN_USER)
+
+        async with TestSession() as session:
+            await session.execute(
+                update(User)
+                .where(User.email == _SUPERADMIN_USER["email"])
+                .values(role=UserRole.SUPERADMIN)
+            )
+            await session.commit()
+
+        resp = await ac.post(
+            "/auth/token",
+            content=f"username={_SUPERADMIN_USER['email']}&password={_SUPERADMIN_USER['password']}",
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        ac.headers["Authorization"] = f"Bearer {resp.json()['access_token']}"
+        yield ac

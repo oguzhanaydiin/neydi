@@ -24,6 +24,18 @@ class DeckOut(BaseModel):
     createdAt: int = Field(validation_alias="created_at_ms")
 
 
+class DeckPublicOut(BaseModel):
+    """Deck shape returned by the public /decks/explore endpoint."""
+
+    id: uuid.UUID
+    name: str
+    description: Optional[str] = None
+    cards: list[CardOut] = []
+    createdAt: int
+    owner_username: str
+    is_official: bool
+
+
 class CardIn(BaseModel):
     id: Optional[uuid.UUID] = None
     front: str
