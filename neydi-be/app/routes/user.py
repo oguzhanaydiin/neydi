@@ -3,11 +3,14 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.security import hash_password
+from app.models.deck import Deck
 from app.models.user import User
-from app.schemas.user import UserResponse, UserUpdate
+from app.schemas.deck import DeckOut
+from app.schemas.user import UserPublicResponse, UserResponse, UserUpdate
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -22,6 +25,28 @@ async def list_users(
     skip: int = 0, limit: int = 20, db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(select(User).offset(skip).limit(limit))
+    return result.scalars().all()
+
+
+@router.get(
+    "/search",
+    response_model=list[UserPublicResponse],
+    summary="Search users",
+    description="Case-insensitive partial search on username. Returns up to `limit` results.",
+)
+async def search_users(
+    q: str = "",
+    skip: int = 0,
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(User)
+        .where(User.username.ilike(f"%{q}%"))
+        .order_by(User.username)
+        .offset(skip)
+        .limit(limit)
+    )
     return result.scalars().all()
 
 
@@ -100,3 +125,23 @@ async def delete_user(user_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     await db.delete(user)
     await db.commit()
+
+
+@router.get(
+    "/{user_id}/decks",
+    response_model=list[DeckOut],
+    summary="Get a user's public decks",
+    description="Returns all decks (with cards) belonging to the given user. No authentication required.",
+)
+async def get_user_decks(user_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    user_result = await db.execute(select(User).where(User.id == user_id))
+    if not user_result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    result = await db.execute(
+        select(Deck)
+        .where(Deck.user_id == user_id)
+        .options(selectinload(Deck.cards))
+        .order_by(Deck.created_at_ms.desc())
+    )
+    return result.scalars().all()
