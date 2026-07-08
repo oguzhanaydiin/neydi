@@ -34,7 +34,10 @@ onMounted(async () => {
 
 <template>
   <UApp>
-    <UHeader :toggle="false">
+    <UHeader
+      :toggle="false"
+      :ui="{ center: 'flex flex-1 justify-end sm:justify-center min-w-0 px-1 sm:px-2' }"
+    >
       <template #left>
         <NuxtLink
           to="/"
@@ -43,6 +46,8 @@ onMounted(async () => {
           neydi
         </NuxtLink>
       </template>
+
+      <UserSearch />
 
       <template #right>
         <div class="flex items-center gap-2">
