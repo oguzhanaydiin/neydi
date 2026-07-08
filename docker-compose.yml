@@ -47,8 +47,9 @@ services:
       - backend
     volumes:
       - ./neydi-fe:/app
-      # Preserve container's node_modules and .nuxt cache from being overwritten by host mount
+      # Keep deps and caches inside the container, not on the host bind mount
       - /app/node_modules
+      - /app/.pnpm-store
       - /app/.nuxt
     restart: unless-stopped
 
