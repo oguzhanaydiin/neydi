@@ -58,8 +58,9 @@ const goToBrowse = () => {
 }
 
 const onSubmit = () => {
-  if (results.value.length === 1) {
-    goToUser(results.value[0])
+  const match = results.value.at(0)
+  if (results.value.length === 1 && match) {
+    goToUser(match)
   } else if (results.value.length > 1) {
     goToBrowse()
   } else if (query.value.trim()) {
