@@ -70,3 +70,15 @@ class UserPublicResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class UserProfileResponse(BaseModel):
+    id: uuid.UUID
+    username: str
+    created_at: datetime
+    followers_count: int
+    following_count: int
+
+
+class FollowStatusResponse(BaseModel):
+    is_following: bool
