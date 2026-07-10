@@ -4,11 +4,14 @@ import {
   type UserProfileResponse,
   type UserPublicResponse
 } from '~/composables/useFollow'
+import { useDecks } from '~/composables/useDecks'
 
 const route = useRoute()
 const { public: { apiBase } } = useRuntimeConfig()
 const { user: currentUser, isLoggedIn } = useAuth()
 const { getProfile, getFollowStatus, toggleFollow, getFollowers } = useFollow()
+const { copyDeck } = useDecks()
+const toast = useToast()
 
 interface Card {
   id: string
@@ -35,6 +38,9 @@ const followLoading = ref(false)
 const followersLoading = ref(false)
 const view = ref<'decks' | 'followers'>('decks')
 const expandedDecks = ref<Set<string>>(new Set())
+const copyingDeck = ref<Deck | null>(null)
+const isCopyModalOpen = ref(false)
+const copyLoading = ref(false)
 
 const isOwnProfile = computed(() => currentUser.value?.id === userId)
 
@@ -60,6 +66,32 @@ const showFollowers = async () => {
 
 const showDecks = () => {
   view.value = 'decks'
+}
+
+const openCopyModal = (deck: Deck, event: Event) => {
+  event.stopPropagation()
+  if (!isLoggedIn.value) {
+    navigateTo('/login')
+    return
+  }
+  copyingDeck.value = deck
+  isCopyModalOpen.value = true
+}
+
+const handleCopyDeck = async (name: string, desc: string) => {
+  if (!copyingDeck.value) return
+  copyLoading.value = true
+  try {
+    const deck = await copyDeck(copyingDeck.value.id, name, desc)
+    toast.add({
+      title: 'Deck copied',
+      description: `"${deck.name}" is now in your decks`,
+      color: 'success'
+    })
+  } finally {
+    copyLoading.value = false
+    copyingDeck.value = null
+  }
 }
 
 const loadFollowStatus = async () => {
@@ -340,6 +372,16 @@ const confidenceDotClass = (card: Card, i: number) => {
                 </div>
 
                 <div class="flex items-center gap-3 shrink-0">
+                  <UButton
+                    v-if="!isOwnProfile"
+                    variant="soft"
+                    color="neutral"
+                    icon="i-lucide-copy"
+                    size="xs"
+                    @click="openCopyModal(deck, $event)"
+                  >
+                    {{ isLoggedIn ? 'Copy' : 'Log in to copy' }}
+                  </UButton>
                   <UBadge
                     :label="`${deck.cards.length} ${deck.cards.length === 1 ? 'card' : 'cards'}`"
                     variant="subtle"
@@ -405,5 +447,12 @@ const confidenceDotClass = (card: Card, i: number) => {
         </div>
       </div>
     </template>
+
+    <DeckFormModal
+      v-model:open="isCopyModalOpen"
+      mode="copy"
+      :deck="copyingDeck ?? undefined"
+      @submit="handleCopyDeck"
+    />
   </UContainer>
 </template>

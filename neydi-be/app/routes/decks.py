@@ -14,6 +14,7 @@ from app.schemas.deck import (
     CardOut,
     CardPatch,
     ConfidencePatch,
+    DeckCopyIn,
     DeckIn,
     DeckOut,
     DeckPatch,
@@ -22,6 +23,16 @@ from app.schemas.deck import (
 )
 
 router = APIRouter(prefix="/decks", tags=["decks"])
+
+
+async def _get_deck_or_404(deck_id: uuid.UUID, db: AsyncSession) -> Deck:
+    result = await db.execute(
+        select(Deck).where(Deck.id == deck_id).options(selectinload(Deck.cards))
+    )
+    deck = result.scalar_one_or_none()
+    if deck is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Deck not found")
+    return deck
 
 
 async def _get_deck(
@@ -114,6 +125,47 @@ async def list_decks(
         .order_by(Deck.created_at_ms)
     )
     return result.scalars().all()
+
+
+@router.post("/{deck_id}/copy", response_model=DeckOut, status_code=status.HTTP_201_CREATED)
+async def copy_deck(
+    deck_id: uuid.UUID,
+    payload: DeckCopyIn,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    source = await _get_deck_or_404(deck_id, db)
+    if source.user_id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot copy your own deck",
+        )
+
+    import time
+
+    new_id = uuid.uuid4()
+    new_deck = Deck(
+        id=new_id,
+        user_id=current_user.id,
+        name=payload.name.strip(),
+        description=payload.description if payload.description is not None else source.description,
+        created_at_ms=int(time.time() * 1000),
+    )
+    new_deck.cards = [
+        Card(
+            id=uuid.uuid4(),
+            deck_id=new_id,
+            front=card.front,
+            back=card.back,
+            confidence=0,
+            position=i,
+        )
+        for i, card in enumerate(source.cards)
+    ]
+    db.add(new_deck)
+    await db.commit()
+    await db.refresh(new_deck, ["cards"])
+    return new_deck
 
 
 @router.post("", response_model=DeckOut, status_code=status.HTTP_201_CREATED)

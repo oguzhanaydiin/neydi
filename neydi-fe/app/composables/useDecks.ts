@@ -132,6 +132,19 @@ export const useDecks = () => {
     }
   }
 
+  const copyDeck = async (sourceDeckId: string, name: string, description?: string): Promise<Deck> => {
+    const deck = await $fetch<Deck>(`${apiBase}/decks/${sourceDeckId}/copy`, {
+      method: 'POST',
+      headers: authHeaders.value,
+      body: {
+        name: name.trim(),
+        description: description?.trim() || undefined
+      }
+    })
+    decks.value.push(deck)
+    return deck
+  }
+
   // --- Card CRUD ---
 
   const addCard = async (deckId: string, front: string, back: string): Promise<Card | undefined> => {
@@ -229,6 +242,7 @@ export const useDecks = () => {
     createDeck,
     updateDeck,
     deleteDeck,
+    copyDeck,
     addCard,
     updateCard,
     updateCardConfidence,

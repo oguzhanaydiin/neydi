@@ -4,6 +4,7 @@ import type { Deck } from '~/composables/useDecks'
 const props = defineProps<{
   open: boolean
   deck?: Deck
+  mode?: 'create' | 'edit' | 'copy'
 }>()
 
 const emit = defineEmits<{
@@ -11,10 +12,20 @@ const emit = defineEmits<{
   'submit': [name: string, desc: string]
 }>()
 
-const isEditMode = computed(() => !!props.deck)
-const title = computed(() => isEditMode.value ? 'Edit Deck' : 'New Deck')
-const submitLabel = computed(() => isEditMode.value ? 'Save' : 'Create Deck')
-const submitIcon = computed(() => isEditMode.value ? 'i-lucide-check' : 'i-lucide-plus')
+const isEditMode = computed(() => props.mode === 'edit' || (!props.mode && !!props.deck))
+const isCopyMode = computed(() => props.mode === 'copy')
+const title = computed(() => {
+  if (isCopyMode.value) return 'Copy Deck'
+  return isEditMode.value ? 'Edit Deck' : 'New Deck'
+})
+const submitLabel = computed(() => {
+  if (isCopyMode.value) return 'Copy to my decks'
+  return isEditMode.value ? 'Save' : 'Create Deck'
+})
+const submitIcon = computed(() => {
+  if (isCopyMode.value) return 'i-lucide-copy'
+  return isEditMode.value ? 'i-lucide-check' : 'i-lucide-plus'
+})
 
 const name = ref('')
 const desc = ref('')
