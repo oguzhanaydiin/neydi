@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import Base, SessionLocal, engine
 from app.core.security import hash_password
-from app.models import Card, Deck, User  # noqa: F401 — ensures models are registered with Base
+from app.models import Card, Deck, Follow, User  # noqa: F401 — ensures models are registered with Base
 from app.models.user import UserRole
 from app.routes import auth_router, decks_router, user_router
 

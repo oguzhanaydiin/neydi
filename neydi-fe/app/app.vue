@@ -52,7 +52,13 @@ onMounted(async () => {
       <template #right>
         <div class="flex items-center gap-2">
           <template v-if="isLoggedIn">
-            <span class="text-sm text-muted hidden sm:inline">{{ user?.username }}</span>
+            <NuxtLink
+              v-if="user"
+              :to="`/users/${user.id}`"
+              class="text-sm text-muted hidden sm:inline hover:text-primary transition-colors"
+            >
+              {{ user.username }}
+            </NuxtLink>
             <UButton
               variant="ghost"
               size="sm"

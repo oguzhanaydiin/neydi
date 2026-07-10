@@ -1,18 +1,51 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.security import hash_password
 from app.models.deck import Deck
+from app.models.follow import Follow
 from app.models.user import User
+from app.routes.auth import get_current_user
 from app.schemas.deck import DeckOut
-from app.schemas.user import UserPublicResponse, UserResponse, UserUpdate
+from app.schemas.user import (
+    FollowStatusResponse,
+    UserProfileResponse,
+    UserPublicResponse,
+    UserResponse,
+    UserUpdate,
+)
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+async def _get_user_or_404(user_id: uuid.UUID, db: AsyncSession) -> User:
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return user
+
+
+async def _build_profile_response(user: User, db: AsyncSession) -> UserProfileResponse:
+    followers_count = await db.scalar(
+        select(func.count()).select_from(Follow).where(Follow.following_id == user.id)
+    )
+    following_count = await db.scalar(
+        select(func.count()).select_from(Follow).where(Follow.follower_id == user.id)
+    )
+
+    return UserProfileResponse(
+        id=user.id,
+        username=user.username,
+        created_at=user.created_at,
+        followers_count=followers_count or 0,
+        following_count=following_count or 0,
+    )
 
 
 @router.get(
@@ -52,16 +85,38 @@ async def search_users(
 
 @router.get(
     "/{user_id}",
-    response_model=UserResponse,
-    summary="Get a user",
-    description="Fetches a single user by their UUID. Returns **404** if no user with that ID exists.",
+    response_model=UserProfileResponse,
+    summary="Get a user profile",
+    description="Fetches a user's public profile with follower/following counts. Returns **404** if no user with that ID exists.",
 )
 async def get_user(user_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    return user
+    user = await _get_user_or_404(user_id, db)
+    return await _build_profile_response(user, db)
+
+
+@router.get(
+    "/{user_id}/follow-status",
+    response_model=FollowStatusResponse,
+    summary="Get follow status",
+    description="Returns whether the authenticated user follows the given user.",
+)
+async def get_follow_status(
+    user_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if user_id == current_user.id:
+        return FollowStatusResponse(is_following=False)
+
+    await _get_user_or_404(user_id, db)
+
+    result = await db.execute(
+        select(Follow).where(
+            Follow.follower_id == current_user.id,
+            Follow.following_id == user_id,
+        )
+    )
+    return FollowStatusResponse(is_following=result.scalar_one_or_none() is not None)
 
 
 @router.patch(
@@ -76,10 +131,7 @@ async def get_user(user_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
 async def update_user(
     user_id: uuid.UUID, payload: UserUpdate, db: AsyncSession = Depends(get_db)
 ):
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    user = await _get_user_or_404(user_id, db)
 
     if payload.email is not None:
         conflict = await db.execute(
@@ -119,12 +171,97 @@ async def update_user(
     description="Permanently deletes a user account. Returns **204** on success, **404** if the user doesn't exist.",
 )
 async def delete_user(user_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    user = await _get_user_or_404(user_id, db)
     await db.delete(user)
     await db.commit()
+
+
+@router.post(
+    "/{user_id}/follow",
+    response_model=FollowStatusResponse,
+    summary="Toggle follow",
+    description="Follow or unfollow a user. Returns the new follow status.",
+)
+async def toggle_follow(
+    user_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot follow yourself",
+        )
+
+    await _get_user_or_404(user_id, db)
+
+    result = await db.execute(
+        select(Follow).where(
+            Follow.follower_id == current_user.id,
+            Follow.following_id == user_id,
+        )
+    )
+    follow = result.scalar_one_or_none()
+
+    if follow:
+        await db.delete(follow)
+        is_following = False
+    else:
+        db.add(Follow(follower_id=current_user.id, following_id=user_id))
+        is_following = True
+
+    await db.commit()
+    return FollowStatusResponse(is_following=is_following)
+
+
+@router.get(
+    "/{user_id}/followers",
+    response_model=list[UserPublicResponse],
+    summary="Get a user's followers",
+    description="Returns users who follow the given user.",
+)
+async def get_followers(
+    user_id: uuid.UUID,
+    skip: int = 0,
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db),
+):
+    await _get_user_or_404(user_id, db)
+
+    result = await db.execute(
+        select(User)
+        .join(Follow, Follow.follower_id == User.id)
+        .where(Follow.following_id == user_id)
+        .order_by(Follow.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    return result.scalars().all()
+
+
+@router.get(
+    "/{user_id}/following",
+    response_model=list[UserPublicResponse],
+    summary="Get users a user is following",
+    description="Returns users that the given user follows.",
+)
+async def get_following(
+    user_id: uuid.UUID,
+    skip: int = 0,
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db),
+):
+    await _get_user_or_404(user_id, db)
+
+    result = await db.execute(
+        select(User)
+        .join(Follow, Follow.following_id == User.id)
+        .where(Follow.follower_id == user_id)
+        .order_by(Follow.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    return result.scalars().all()
 
 
 @router.get(
@@ -134,9 +271,7 @@ async def delete_user(user_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     description="Returns all decks (with cards) belonging to the given user. No authentication required.",
 )
 async def get_user_decks(user_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    user_result = await db.execute(select(User).where(User.id == user_id))
-    if not user_result.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    await _get_user_or_404(user_id, db)
 
     result = await db.execute(
         select(Deck)
