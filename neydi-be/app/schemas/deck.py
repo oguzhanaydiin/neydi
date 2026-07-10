@@ -58,6 +58,11 @@ class DeckPatch(BaseModel):
     description: Optional[str] = None
 
 
+class DeckCopyIn(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+
 class CardPatch(BaseModel):
     front: str
     back: str
