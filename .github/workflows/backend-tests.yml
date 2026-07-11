@@ -22,5 +22,5 @@ jobs:
         working-directory: neydi-be
 
       - name: Run tests
-        run: python -m pytest tests/ -v
+        run: python -m pytest tests/ -v --durations=10
         working-directory: neydi-be
