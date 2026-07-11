@@ -27,32 +27,51 @@ def _uuid_bind_processor(self, dialect):
 
 _pgUUID.bind_processor = _uuid_bind_processor
 
+import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base, get_db
 from main import app
 
-test_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:",
-    poolclass=StaticPool,
-)
-TestSession = async_sessionmaker(test_engine, expire_on_commit=False)
+
+@pytest.fixture(scope="session")
+def worker_id(request: pytest.FixtureRequest) -> str:
+    workerinput = getattr(request.config, "workerinput", None)
+    if workerinput is not None:
+        return workerinput["workerid"]
+    return "master"
 
 
-async def override_get_db():
-    async with TestSession() as session:
-        yield session
+@pytest_asyncio.fixture(scope="session")
+async def test_engine(worker_id: str) -> AsyncEngine:
+    # Each xdist worker is its own process, so :memory: + StaticPool is isolated per worker.
+    del worker_id
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+    )
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield engine
+    await engine.dispose()
+
+
+@pytest_asyncio.fixture(scope="session")
+def test_session_factory(test_engine: AsyncEngine):
+    return async_sessionmaker(test_engine, expire_on_commit=False)
 
 
 @pytest_asyncio.fixture(autouse=True)
-async def reset_db():
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+async def reset_db(test_engine: AsyncEngine, test_session_factory):
+    async def _override_get_db():
+        async with test_session_factory() as session:
+            yield session
 
-    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_db] = _override_get_db
     yield
     app.dependency_overrides.clear()
 
@@ -85,15 +104,16 @@ async def auth_client(client: AsyncClient):
 
 
 @pytest_asyncio.fixture
-async def superadmin_client():
+async def superadmin_client(test_session_factory):
     """Independent client logged in as the superadmin (its own AsyncClient instance)."""
     from sqlalchemy import update
+
     from app.models.user import User, UserRole
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         await ac.post("/auth/register", json=_SUPERADMIN_USER)
 
-        async with TestSession() as session:
+        async with test_session_factory() as session:
             await session.execute(
                 update(User)
                 .where(User.email == _SUPERADMIN_USER["email"])
