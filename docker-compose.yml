@@ -19,6 +19,7 @@ services:
   backend:
     build:
       context: ./neydi-be
+      target: production
     ports:
       - "8000:8000"
     env_file:
@@ -30,27 +31,21 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      # Mount source for hot reload; pip packages live in Python site-packages (unaffected)
-      - ./neydi-be:/app
     restart: unless-stopped
 
   frontend:
     build:
       context: ./neydi-fe
+      target: production
+      args:
+        NUXT_PUBLIC_API_BASE: ${NUXT_PUBLIC_API_BASE:-/api}
+        NUXT_API_PROXY_TARGET: ${NUXT_API_PROXY_TARGET:-http://backend:8000}
     ports:
       - "3000:3000"
     environment:
-      # All API calls are client-side (browser), so localhost:8000 is correct here
-      NUXT_PUBLIC_API_BASE: http://localhost:8000
+      NUXT_PUBLIC_API_BASE: ${NUXT_PUBLIC_API_BASE:-/api}
     depends_on:
       - backend
-    volumes:
-      - ./neydi-fe:/app
-      # Keep deps and caches inside the container, not on the host bind mount
-      - /app/node_modules
-      - /app/.pnpm-store
-      - /app/.nuxt
     restart: unless-stopped
 
 volumes:
