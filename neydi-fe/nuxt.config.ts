@@ -1,4 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+const apiProxyTarget = process.env.NUXT_API_PROXY_TARGET || 'http://127.0.0.1:8000'
+
 export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
@@ -18,11 +20,24 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://127.0.0.1:8000'
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || '/api'
     }
   },
 
+  routeRules: {
+    '/api/**': { proxy: `${apiProxyTarget}/**` }
+  },
+
   compatibilityDate: '2025-01-15',
+
+  nitro: {
+    devProxy: {
+      '/api/': {
+        target: `${apiProxyTarget}/`,
+        changeOrigin: true
+      }
+    }
+  },
 
   eslint: {
     config: {
@@ -31,5 +46,9 @@ export default defineNuxtConfig({
         braceStyle: '1tbs'
       }
     }
+  },
+
+  icon: {
+    localApiEndpoint: '/_nuxt_icon'
   }
 })
