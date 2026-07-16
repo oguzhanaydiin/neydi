@@ -30,13 +30,13 @@ async def _ensure_superadmin(db: AsyncSession) -> None:
         )
         db.add(admin)
         await db.commit()
-        print(f"✓ Superadmin account created ({settings.SUPERADMIN_EMAIL})")
+        print(f"OK Superadmin account created ({settings.SUPERADMIN_EMAIL})")
     elif existing.role != UserRole.SUPERADMIN:
         existing.role = UserRole.SUPERADMIN
         await db.commit()
-        print(f"✓ Superadmin role granted to existing account ({settings.SUPERADMIN_EMAIL})")
+        print(f"OK Superadmin role granted to existing account ({settings.SUPERADMIN_EMAIL})")
     else:
-        print(f"✓ Superadmin account already exists ({settings.SUPERADMIN_EMAIL})")
+        print(f"OK Superadmin account already exists ({settings.SUPERADMIN_EMAIL})")
 
 
 @asynccontextmanager
@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.execute(text("SELECT 1"))
         await conn.run_sync(Base.metadata.create_all)
-    print("✓ Database connection successful, tables ensured")
+    print("OK Database connection successful, tables ensured")
 
     async with SessionLocal() as db:
         await _ensure_superadmin(db)
