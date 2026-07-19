@@ -3,12 +3,13 @@ import type { Card } from '~/composables/useDecks'
 
 const route = useRoute()
 const router = useRouter()
-const { getDeck, updateCardConfidence } = useDecks()
+const { getDeck, isOwnedDeck, updateCardConfidence } = useDecks()
 
 const flashCardRef = ref<{ swipeOut: (d: 'left' | 'right') => void } | null>(null)
 
 const deckId = route.params.id as string
 const deck = computed(() => getDeck(deckId))
+const isOwned = computed(() => isOwnedDeck(deckId))
 
 watchEffect(() => {
   if (!deck.value) router.push('/')
@@ -179,9 +180,9 @@ const confidenceLabelFor = (c: number) => {
         </UButton>
         <UButton
           :to="`/decks/${deckId}`"
-          icon="i-lucide-settings-2"
+          :icon="isOwned ? 'i-lucide-settings-2' : 'i-lucide-eye'"
         >
-          Manage deck
+          {{ isOwned ? 'Manage deck' : 'View deck' }}
         </UButton>
       </div>
     </div>

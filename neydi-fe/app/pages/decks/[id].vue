@@ -3,10 +3,11 @@ import type { Card } from '~/composables/useDecks'
 
 const route = useRoute()
 const router = useRouter()
-const { getDeck, addCard, updateCard, deleteCard, updateDeck, reorderCards } = useDecks()
+const { getDeck, isOwnedDeck, addCard, updateCard, deleteCard, updateDeck, reorderCards } = useDecks()
 
 const deckId = route.params.id as string
 const deck = computed(() => getDeck(deckId))
+const isOwned = computed(() => isOwnedDeck(deckId))
 
 watchEffect(() => {
   if (!deck.value) router.push('/')
@@ -110,7 +111,15 @@ const handleEditDeck = async (name: string, desc: string) => {
             class="text-3xl font-bold flex items-center gap-2 flex-wrap"
           >
             {{ deck.name }}
+            <UBadge
+              v-if="!isOwned"
+              label="Pinned"
+              variant="subtle"
+              color="primary"
+              size="sm"
+            />
             <UButton
+              v-if="isOwned"
               icon="i-lucide-pencil"
               size="xs"
               color="neutral"
@@ -118,6 +127,12 @@ const handleEditDeck = async (name: string, desc: string) => {
               @click="() => { isEditDeckOpen = true }"
             />
           </h1>
+          <p
+            v-if="deck.ownerUsername"
+            class="text-sm text-muted mt-1"
+          >
+            by {{ deck.ownerUsername }}
+          </p>
           <p
             v-if="deck.description"
             class="text-muted mt-1"
@@ -146,6 +161,7 @@ const handleEditDeck = async (name: string, desc: string) => {
             Study
           </UButton>
           <UButton
+            v-if="isOwned"
             icon="i-lucide-plus"
             color="neutral"
             variant="subtle"
@@ -167,7 +183,10 @@ const handleEditDeck = async (name: string, desc: string) => {
         title="No cards yet"
         description="Add some cards to start studying this deck"
       >
-        <template #actions>
+        <template
+          v-if="isOwned"
+          #actions
+        >
           <UButton
             icon="i-lucide-plus"
             @click="openAddCard"
@@ -188,6 +207,7 @@ const handleEditDeck = async (name: string, desc: string) => {
           {{ deck.cards.length }} {{ deck.cards.length === 1 ? 'card' : 'cards' }}
         </p>
         <USelect
+          v-if="isOwned"
           v-model="sortBy"
           :items="sortOptions"
           value-key="value"
@@ -201,7 +221,7 @@ const handleEditDeck = async (name: string, desc: string) => {
       </div>
 
       <DraggableList
-        v-if="isDraggable"
+        v-if="isDraggable && isOwned"
         :items="draggableCards"
         class="flex flex-col gap-3"
         @reorder="reorderCards(deckId, $event)"
@@ -211,7 +231,8 @@ const handleEditDeck = async (name: string, desc: string) => {
             <CardRow
               :card="item"
               :index="index"
-              draggable
+              :draggable="isOwned"
+              :readonly="!isOwned"
               :grip-listeners="gripListeners"
               @edit="openEditCard(item)"
               @delete="openDeleteCard(item.id)"
@@ -228,6 +249,7 @@ const handleEditDeck = async (name: string, desc: string) => {
           <CardRow
             :card="card"
             :index="deck.cards.findIndex(c => c.id === card.id)"
+            :readonly="!isOwned"
             @edit="openEditCard(card)"
             @delete="openDeleteCard(card.id)"
           />
@@ -250,6 +272,7 @@ const handleEditDeck = async (name: string, desc: string) => {
     />
 
     <DeckFormModal
+      v-if="isOwned"
       v-model:open="isEditDeckOpen"
       :deck="deck"
       @submit="handleEditDeck"

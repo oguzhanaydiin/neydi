@@ -16,11 +16,27 @@ defineProps<{
       <div
         class="flex-1"
       >
-        <h3
-          class="font-semibold text-lg leading-tight"
+        <div class="flex items-start gap-2">
+          <h3
+            class="font-semibold text-lg leading-tight flex-1"
+          >
+            {{ deck.name }}
+          </h3>
+          <UBadge
+            v-if="deck.isPinned"
+            label="Pinned"
+            variant="subtle"
+            color="primary"
+            size="xs"
+            class="shrink-0"
+          />
+        </div>
+        <p
+          v-if="deck.ownerUsername"
+          class="text-xs text-muted mt-1"
         >
-          {{ deck.name }}
-        </h3>
+          by {{ deck.ownerUsername }}
+        </p>
         <p
           v-if="deck.description"
           class="text-sm text-muted mt-1 line-clamp-2"
@@ -30,10 +46,17 @@ defineProps<{
       </div>
 
       <div
-        class="flex items-center gap-2"
+        class="flex items-center gap-2 flex-wrap"
       >
         <UBadge
           :label="`${deck.cards.length} ${deck.cards.length === 1 ? 'card' : 'cards'}`"
+          variant="subtle"
+          color="neutral"
+          size="sm"
+        />
+        <UBadge
+          v-if="deck.saveCount !== undefined && deck.saveCount > 0"
+          :label="`Saved ${deck.saveCount} ${deck.saveCount === 1 ? 'time' : 'times'}`"
           variant="subtle"
           color="neutral"
           size="sm"
@@ -54,12 +77,12 @@ defineProps<{
         </UButton>
         <UButton
           :to="`/decks/${deck.id}`"
-          icon="i-lucide-settings-2"
+          :icon="deck.isPinned ? 'i-lucide-eye' : 'i-lucide-settings-2'"
           size="sm"
           color="neutral"
           variant="subtle"
         >
-          Manage
+          {{ deck.isPinned ? 'View' : 'Manage' }}
         </UButton>
       </div>
     </div>

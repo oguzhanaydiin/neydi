@@ -11,7 +11,8 @@ from app.models.deck import Deck
 from app.models.follow import Follow
 from app.models.user import User
 from app.routes.auth import get_current_user
-from app.schemas.deck import DeckOut
+from app.routes.decks import _save_count
+from app.schemas.deck import DeckOut, DeckWithStatsOut
 from app.schemas.user import (
     FollowStatusResponse,
     UserProfileResponse,
@@ -266,7 +267,7 @@ async def get_following(
 
 @router.get(
     "/{user_id}/decks",
-    response_model=list[DeckOut],
+    response_model=list[DeckWithStatsOut],
     summary="Get a user's public decks",
     description="Returns all decks (with cards) belonging to the given user. No authentication required.",
 )
@@ -279,4 +280,17 @@ async def get_user_decks(user_id: uuid.UUID, db: AsyncSession = Depends(get_db))
         .options(selectinload(Deck.cards))
         .order_by(Deck.created_at_ms.desc())
     )
-    return result.scalars().all()
+    decks = result.scalars().all()
+    out = []
+    for deck in decks:
+        out.append(
+            DeckWithStatsOut(
+                id=deck.id,
+                name=deck.name,
+                description=deck.description,
+                cards=deck.cards,
+                createdAt=deck.created_at_ms,
+                save_count=await _save_count(deck.id, db),
+            )
+        )
+    return out

@@ -10,7 +10,7 @@ const route = useRoute()
 const { public: { apiBase } } = useRuntimeConfig()
 const { user: currentUser, isLoggedIn } = useAuth()
 const { getProfile, getFollowStatus, toggleFollow, getFollowers } = useFollow()
-const { copyDeck } = useDecks()
+const { copyDeck, pinDeck, unpinDeck, isDeckPinned } = useDecks()
 const toast = useToast()
 
 interface Card {
@@ -26,6 +26,7 @@ interface Deck {
   description?: string
   cards: Card[]
   createdAt: number
+  save_count?: number
 }
 
 const userId = route.params.id as string
@@ -41,6 +42,7 @@ const expandedDecks = ref<Set<string>>(new Set())
 const copyingDeck = ref<Deck | null>(null)
 const isCopyModalOpen = ref(false)
 const copyLoading = ref(false)
+const pinLoadingId = ref<string | null>(null)
 
 const isOwnProfile = computed(() => currentUser.value?.id === userId)
 
@@ -83,6 +85,8 @@ const handleCopyDeck = async (name: string, desc: string) => {
   copyLoading.value = true
   try {
     const deck = await copyDeck(copyingDeck.value.id, name, desc)
+    const listed = decks.value.find(d => d.id === copyingDeck.value!.id)
+    if (listed) listed.save_count = (listed.save_count ?? 0) + 1
     toast.add({
       title: 'Deck copied',
       description: `"${deck.name}" is now in your decks`,
@@ -91,6 +95,36 @@ const handleCopyDeck = async (name: string, desc: string) => {
   } finally {
     copyLoading.value = false
     copyingDeck.value = null
+  }
+}
+
+const handleTogglePin = async (deck: Deck, event: Event) => {
+  event.stopPropagation()
+  if (!isLoggedIn.value) {
+    navigateTo('/login')
+    return
+  }
+  pinLoadingId.value = deck.id
+  try {
+    if (isDeckPinned(deck.id)) {
+      await unpinDeck(deck.id)
+      if (deck.save_count) deck.save_count -= 1
+      toast.add({
+        title: 'Deck unpinned',
+        description: `"${deck.name}" was removed from your dashboard`,
+        color: 'neutral'
+      })
+    } else {
+      await pinDeck(deck.id)
+      deck.save_count = (deck.save_count ?? 0) + 1
+      toast.add({
+        title: 'Deck pinned',
+        description: `"${deck.name}" is on your dashboard — study it anytime`,
+        color: 'success'
+      })
+    }
+  } finally {
+    pinLoadingId.value = null
   }
 }
 
@@ -374,6 +408,17 @@ const confidenceDotClass = (card: Card, i: number) => {
                 <div class="flex items-center gap-3 shrink-0">
                   <UButton
                     v-if="!isOwnProfile"
+                    :variant="isDeckPinned(deck.id) ? 'solid' : 'soft'"
+                    :color="isDeckPinned(deck.id) ? 'primary' : 'neutral'"
+                    :icon="isDeckPinned(deck.id) ? 'i-lucide-pin-off' : 'i-lucide-pin'"
+                    :loading="pinLoadingId === deck.id"
+                    size="xs"
+                    @click="handleTogglePin(deck, $event)"
+                  >
+                    {{ isDeckPinned(deck.id) ? 'Unpin' : (isLoggedIn ? 'Pin' : 'Log in to pin') }}
+                  </UButton>
+                  <UButton
+                    v-if="!isOwnProfile"
                     variant="soft"
                     color="neutral"
                     icon="i-lucide-copy"
@@ -382,6 +427,13 @@ const confidenceDotClass = (card: Card, i: number) => {
                   >
                     {{ isLoggedIn ? 'Copy' : 'Log in to copy' }}
                   </UButton>
+                  <UBadge
+                    v-if="deck.save_count && deck.save_count > 0"
+                    :label="`Saved ${deck.save_count} ${deck.save_count === 1 ? 'time' : 'times'}`"
+                    variant="subtle"
+                    color="neutral"
+                    size="sm"
+                  />
                   <UBadge
                     :label="`${deck.cards.length} ${deck.cards.length === 1 ? 'card' : 'cards'}`"
                     variant="subtle"

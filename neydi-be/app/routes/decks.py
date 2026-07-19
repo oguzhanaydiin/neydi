@@ -1,13 +1,15 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.models.deck import Card, Deck
+from app.models.deck_pin import DeckPin
 from app.models.user import User, UserRole
+from app.models.user_card_progress import UserCardProgress
 from app.routes.auth import get_current_user
 from app.schemas.deck import (
     CardIn,
@@ -19,6 +21,8 @@ from app.schemas.deck import (
     DeckOut,
     DeckPatch,
     DeckPublicOut,
+    PinStatusResponse,
+    PinnedDeckOut,
     ReorderPatch,
 )
 
@@ -65,6 +69,62 @@ def _build_cards(card_inputs: list[CardIn], deck_id: uuid.UUID) -> list[Card]:
     ]
 
 
+async def _save_count(deck_id: uuid.UUID, db: AsyncSession) -> int:
+    pin_count = await db.scalar(
+        select(func.count()).select_from(DeckPin).where(DeckPin.deck_id == deck_id)
+    ) or 0
+    copy_count = await db.scalar(
+        select(func.count()).select_from(Deck).where(Deck.source_deck_id == deck_id)
+    ) or 0
+    return pin_count + copy_count
+
+
+async def _apply_user_card_progress(deck: Deck, user_id: uuid.UUID, db: AsyncSession) -> None:
+    if deck.user_id == user_id:
+        return
+    card_ids = [c.id for c in deck.cards]
+    if not card_ids:
+        return
+    result = await db.execute(
+        select(UserCardProgress).where(
+            UserCardProgress.user_id == user_id,
+            UserCardProgress.card_id.in_(card_ids),
+        )
+    )
+    progress_map = {p.card_id: p.confidence for p in result.scalars().all()}
+    for card in deck.cards:
+        card.confidence = progress_map.get(card.id, 0)
+
+
+async def _get_pinned_deck_or_404(
+    deck_id: uuid.UUID,
+    current_user: User,
+    db: AsyncSession,
+) -> Deck:
+    result = await db.execute(
+        select(DeckPin).where(
+            DeckPin.user_id == current_user.id,
+            DeckPin.deck_id == deck_id,
+        )
+    )
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pinned deck not found")
+    return await _get_deck_or_404(deck_id, db)
+
+
+def _pinned_deck_out(deck: Deck, save_count: int) -> PinnedDeckOut:
+    return PinnedDeckOut(
+        id=deck.id,
+        name=deck.name,
+        description=deck.description,
+        cards=deck.cards,
+        createdAt=deck.created_at_ms,
+        owner_id=deck.user_id,
+        owner_username=deck.owner.username,
+        save_count=save_count,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Public deck discovery
 # ---------------------------------------------------------------------------
@@ -94,18 +154,21 @@ async def explore_decks(
         .limit(limit)
     )
     decks = result.scalars().all()
-    return [
-        DeckPublicOut(
-            id=deck.id,
-            name=deck.name,
-            description=deck.description,
-            cards=deck.cards,
-            createdAt=deck.created_at_ms,
-            owner_username=deck.owner.username,
-            is_official=deck.owner.role == UserRole.SUPERADMIN,
+    out = []
+    for deck in decks:
+        out.append(
+            DeckPublicOut(
+                id=deck.id,
+                name=deck.name,
+                description=deck.description,
+                cards=deck.cards,
+                createdAt=deck.created_at_ms,
+                owner_username=deck.owner.username,
+                is_official=deck.owner.role == UserRole.SUPERADMIN,
+                save_count=await _save_count(deck.id, db),
+            )
         )
-        for deck in decks
-    ]
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -125,6 +188,29 @@ async def list_decks(
         .order_by(Deck.created_at_ms)
     )
     return result.scalars().all()
+
+
+@router.get("/pinned", response_model=list[PinnedDeckOut])
+async def list_pinned_decks(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(DeckPin)
+        .where(DeckPin.user_id == current_user.id)
+        .options(
+            selectinload(DeckPin.deck).selectinload(Deck.cards),
+            selectinload(DeckPin.deck).selectinload(Deck.owner),
+        )
+        .order_by(DeckPin.pinned_at.desc())
+    )
+    pins = result.scalars().all()
+    out = []
+    for pin in pins:
+        deck = pin.deck
+        await _apply_user_card_progress(deck, current_user.id, db)
+        out.append(_pinned_deck_out(deck, await _save_count(deck.id, db)))
+    return out
 
 
 @router.post("/{deck_id}/copy", response_model=DeckOut, status_code=status.HTTP_201_CREATED)
@@ -150,6 +236,7 @@ async def copy_deck(
         name=payload.name.strip(),
         description=payload.description if payload.description is not None else source.description,
         created_at_ms=int(time.time() * 1000),
+        source_deck_id=source.id,
     )
     new_deck.cards = [
         Card(
@@ -166,6 +253,79 @@ async def copy_deck(
     await db.commit()
     await db.refresh(new_deck, ["cards"])
     return new_deck
+
+
+@router.post("/{deck_id}/pin", response_model=PinnedDeckOut, status_code=status.HTTP_201_CREATED)
+async def pin_deck(
+    deck_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    deck = await _get_deck_or_404(deck_id, db)
+    if deck.user_id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot pin your own deck",
+        )
+
+    existing = await db.execute(
+        select(DeckPin).where(
+            DeckPin.user_id == current_user.id,
+            DeckPin.deck_id == deck_id,
+        )
+    )
+    if existing.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Deck already pinned",
+        )
+
+    db.add(DeckPin(user_id=current_user.id, deck_id=deck_id))
+    await db.commit()
+
+    result = await db.execute(
+        select(Deck)
+        .where(Deck.id == deck_id)
+        .options(selectinload(Deck.cards), selectinload(Deck.owner))
+    )
+    deck = result.scalar_one()
+    await _apply_user_card_progress(deck, current_user.id, db)
+    return _pinned_deck_out(deck, await _save_count(deck.id, db))
+
+
+@router.delete("/{deck_id}/pin", status_code=status.HTTP_204_NO_CONTENT)
+async def unpin_deck(
+    deck_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(DeckPin).where(
+            DeckPin.user_id == current_user.id,
+            DeckPin.deck_id == deck_id,
+        )
+    )
+    pin = result.scalar_one_or_none()
+    if pin is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pinned deck not found")
+    await db.delete(pin)
+    await db.commit()
+
+
+@router.get("/{deck_id}/pin-status", response_model=PinStatusResponse)
+async def get_pin_status(
+    deck_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await _get_deck_or_404(deck_id, db)
+    result = await db.execute(
+        select(DeckPin).where(
+            DeckPin.user_id == current_user.id,
+            DeckPin.deck_id == deck_id,
+        )
+    )
+    return PinStatusResponse(is_pinned=result.scalar_one_or_none() is not None)
 
 
 @router.post("", response_model=DeckOut, status_code=status.HTTP_201_CREATED)
@@ -324,11 +484,43 @@ async def update_card_confidence(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    deck = await _get_deck(deck_id, current_user, db)
+    owned_result = await db.execute(
+        select(Deck)
+        .where(Deck.id == deck_id, Deck.user_id == current_user.id)
+        .options(selectinload(Deck.cards))
+    )
+    owned_deck = owned_result.scalar_one_or_none()
+    if owned_deck is not None:
+        card = next((c for c in owned_deck.cards if c.id == card_id), None)
+        if card is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Card not found")
+        card.confidence = payload.confidence
+        await db.commit()
+        return
+
+    await _get_pinned_deck_or_404(deck_id, current_user, db)
+    deck = await _get_deck_or_404(deck_id, db)
     card = next((c for c in deck.cards if c.id == card_id), None)
     if card is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Card not found")
-    card.confidence = payload.confidence
+
+    result = await db.execute(
+        select(UserCardProgress).where(
+            UserCardProgress.user_id == current_user.id,
+            UserCardProgress.card_id == card_id,
+        )
+    )
+    progress = result.scalar_one_or_none()
+    if progress is None:
+        db.add(
+            UserCardProgress(
+                user_id=current_user.id,
+                card_id=card_id,
+                confidence=payload.confidence,
+            )
+        )
+    else:
+        progress.confidence = payload.confidence
     await db.commit()
 
 
