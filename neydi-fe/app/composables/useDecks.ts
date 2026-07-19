@@ -13,6 +13,10 @@ export interface Deck {
   description?: string
   cards: Card[]
   createdAt: number
+  ownerUsername?: string
+  ownerId?: string
+  isPinned?: boolean
+  saveCount?: number
 }
 
 export const useDecks = () => {
@@ -20,6 +24,7 @@ export const useDecks = () => {
   const { isLoggedIn, token } = useAuth()
 
   const decks = useState<Deck[]>('decks', () => [])
+  const pinnedDecks = useState<Deck[]>('pinnedDecks', () => [])
 
   const authHeaders = computed(() => ({
     Authorization: `Bearer ${token.value}`
@@ -37,10 +42,25 @@ export const useDecks = () => {
 
   // Fetch all decks from server. Called after restoreSession() in app.vue.
   const loadDecks = async () => {
-    const data = await $fetch<Deck[]>(`${apiBase}/decks`, {
-      headers: authHeaders.value
-    })
-    decks.value = data
+    const [owned, pinned] = await Promise.all([
+      $fetch<Deck[]>(`${apiBase}/decks`, { headers: authHeaders.value }),
+      $fetch<Array<Deck & { owner_id: string, owner_username: string, save_count: number }>>(
+        `${apiBase}/decks/pinned`,
+        { headers: authHeaders.value }
+      )
+    ])
+    decks.value = owned.map(d => ({ ...d, isPinned: false }))
+    pinnedDecks.value = pinned.map(d => ({
+      id: d.id,
+      name: d.name,
+      description: d.description,
+      cards: d.cards,
+      createdAt: d.createdAt,
+      ownerId: d.owner_id,
+      ownerUsername: d.owner_username,
+      saveCount: d.save_count,
+      isPinned: true
+    }))
   }
 
   // Migrate guest decks to server right after login. Local always wins on conflict.
@@ -79,7 +99,13 @@ export const useDecks = () => {
   // --- Deck CRUD ---
 
   const getDeck = (id: string): Deck | undefined =>
-    decks.value.find(d => d.id === id)
+    decks.value.find(d => d.id === id) ?? pinnedDecks.value.find(d => d.id === id)
+
+  const isOwnedDeck = (id: string): boolean =>
+    decks.value.some(d => d.id === id)
+
+  const isDeckPinned = (id: string): boolean =>
+    pinnedDecks.value.some(d => d.id === id)
 
   const createDeck = async (name: string, description?: string): Promise<Deck> => {
     const payload: Deck = {
@@ -141,8 +167,46 @@ export const useDecks = () => {
         description: description?.trim() || undefined
       }
     })
-    decks.value.push(deck)
+    decks.value.push({ ...deck, isPinned: false })
     return deck
+  }
+
+  const pinDeck = async (sourceDeckId: string): Promise<Deck> => {
+    const pinned = await $fetch<{
+      id: string
+      name: string
+      description?: string
+      cards: Card[]
+      createdAt: number
+      owner_id: string
+      owner_username: string
+      save_count: number
+    }>(`${apiBase}/decks/${sourceDeckId}/pin`, {
+      method: 'POST',
+      headers: authHeaders.value
+    })
+    const deck: Deck = {
+      id: pinned.id,
+      name: pinned.name,
+      description: pinned.description,
+      cards: pinned.cards,
+      createdAt: pinned.createdAt,
+      ownerId: pinned.owner_id,
+      ownerUsername: pinned.owner_username,
+      saveCount: pinned.save_count,
+      isPinned: true
+    }
+    pinnedDecks.value.push(deck)
+    return deck
+  }
+
+  const unpinDeck = async (deckId: string) => {
+    await $fetch(`${apiBase}/decks/${deckId}/pin`, {
+      method: 'DELETE',
+      headers: authHeaders.value
+    })
+    const idx = pinnedDecks.value.findIndex(d => d.id === deckId)
+    if (idx !== -1) pinnedDecks.value.splice(idx, 1)
   }
 
   // --- Card CRUD ---
@@ -238,11 +302,16 @@ export const useDecks = () => {
 
   return {
     decks,
+    pinnedDecks,
     getDeck,
+    isOwnedDeck,
+    isDeckPinned,
     createDeck,
     updateDeck,
     deleteDeck,
     copyDeck,
+    pinDeck,
+    unpinDeck,
     addCard,
     updateCard,
     updateCardConfidence,

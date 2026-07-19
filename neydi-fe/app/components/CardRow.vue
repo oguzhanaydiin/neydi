@@ -5,6 +5,7 @@ const props = defineProps<{
   card: Card
   index: number
   draggable?: boolean
+  readonly?: boolean
   gripListeners?: { onPointerdown: (e: PointerEvent) => void }
 }>()
 
@@ -85,7 +86,10 @@ const confidenceLabel = computed(() => {
         </div>
       </UTooltip>
 
-      <div class="flex gap-1">
+      <div
+        v-if="!readonly"
+        class="flex gap-1"
+      >
         <UButton
           icon="i-lucide-pencil"
           size="xs"

@@ -1,16 +1,24 @@
 <script setup lang="ts">
-const { decks, createDeck, deleteDeck } = useDecks()
+const { decks, pinnedDecks, createDeck, deleteDeck, unpinDeck } = useDecks()
 
 const isDeckFormOpen = ref(false)
 const deletingDeckId = ref<string | null>(null)
 const isDeleteOpen = ref(false)
+const unpinningDeckId = ref<string | null>(null)
+const isUnpinOpen = ref(false)
 
 const openDelete = (id: string) => {
   deletingDeckId.value = id
   isDeleteOpen.value = true
 }
 
+const openUnpin = (id: string) => {
+  unpinningDeckId.value = id
+  isUnpinOpen.value = true
+}
+
 watch(isDeleteOpen, (val) => { if (!val) deletingDeckId.value = null })
+watch(isUnpinOpen, (val) => { if (!val) unpinningDeckId.value = null })
 
 const handleCreate = async (name: string, desc: string) => {
   await createDeck(name, desc)
@@ -22,6 +30,15 @@ const handleDelete = async () => {
     isDeleteOpen.value = false
   }
 }
+
+const handleUnpin = async () => {
+  if (unpinningDeckId.value) {
+    await unpinDeck(unpinningDeckId.value)
+    isUnpinOpen.value = false
+  }
+}
+
+const hasAnyDecks = computed(() => decks.value.length > 0 || pinnedDecks.value.length > 0)
 </script>
 
 <template>
@@ -45,7 +62,7 @@ const handleDelete = async () => {
     </div>
 
     <div
-      v-show="decks.length === 0"
+      v-show="!hasAnyDecks"
       class="py-24"
     >
       <UEmpty
@@ -85,6 +102,33 @@ const handleDelete = async () => {
       </div>
     </div>
 
+    <div
+      v-show="pinnedDecks.length > 0"
+      class="mt-12"
+    >
+      <div class="mb-4">
+        <h2 class="text-xl font-semibold">Pinned Decks</h2>
+        <p class="text-sm text-muted mt-0.5">Decks from other users</p>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div
+          v-for="deck in pinnedDecks"
+          :key="deck.id"
+          class="relative group"
+        >
+          <DeckCard :deck="deck" />
+          <UButton
+            icon="i-lucide-pin-off"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+            @click="openUnpin(deck.id)"
+          />
+        </div>
+      </div>
+    </div>
+
     <DeckFormModal
       v-model:open="isDeckFormOpen"
       @submit="handleCreate"
@@ -95,6 +139,13 @@ const handleDelete = async () => {
       title="Delete deck?"
       message="This will permanently delete the deck and all its cards. This cannot be undone."
       @confirm="handleDelete"
+    />
+
+    <AppConfirmModal
+      v-model:open="isUnpinOpen"
+      title="Unpin deck?"
+      message="This deck will be removed from your dashboard. Your study progress on it will be kept if you pin it again."
+      @confirm="handleUnpin"
     />
   </UContainer>
 </template>
