@@ -34,6 +34,35 @@ class DeckPublicOut(BaseModel):
     createdAt: int
     owner_username: str
     is_official: bool
+    save_count: int = 0
+
+
+class DeckWithStatsOut(BaseModel):
+    """Deck with save count, used for public user deck listings."""
+
+    id: uuid.UUID
+    name: str
+    description: Optional[str] = None
+    cards: list[CardOut] = []
+    createdAt: int
+    save_count: int = 0
+
+
+class PinnedDeckOut(BaseModel):
+    """A deck pinned to the current user's dashboard (not owned by them)."""
+
+    id: uuid.UUID
+    name: str
+    description: Optional[str] = None
+    cards: list[CardOut] = []
+    createdAt: int
+    owner_id: uuid.UUID
+    owner_username: str
+    save_count: int = 0
+
+
+class PinStatusResponse(BaseModel):
+    is_pinned: bool
 
 
 class CardIn(BaseModel):

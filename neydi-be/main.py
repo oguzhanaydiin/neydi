@@ -6,9 +6,10 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.database import Base, SessionLocal, engine
+from app.core.database import SessionLocal, engine
+from app.core.schema import ensure_schema
 from app.core.security import hash_password
-from app.models import Card, Deck, Follow, User  # noqa: F401 — ensures models are registered with Base
+from app.models import Card, Deck, DeckPin, Follow, User, UserCardProgress  # noqa: F401
 from app.models.user import UserRole
 from app.routes import auth_router, decks_router, user_router
 
@@ -43,7 +44,7 @@ async def _ensure_superadmin(db: AsyncSession) -> None:
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.execute(text("SELECT 1"))
-        await conn.run_sync(Base.metadata.create_all)
+        await ensure_schema(conn)
     print("OK Database connection successful, tables ensured")
 
     async with SessionLocal() as db:

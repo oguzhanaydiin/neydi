@@ -21,6 +21,12 @@ class Deck(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Stored as milliseconds epoch, matching the frontend's Date.now() format.
     created_at_ms: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    source_deck_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("decks.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     owner: Mapped["User"] = relationship("User")
     cards: Mapped[list["Card"]] = relationship(
