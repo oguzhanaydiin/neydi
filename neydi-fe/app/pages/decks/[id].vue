@@ -228,15 +228,15 @@ const handleEditDeck = async (name: string, desc: string) => {
       >
         <template #default="{ item, index, gripListeners }">
           <UCard>
-          <CardRow
-            :card="item"
-            :index="index"
-            :draggable="isOwned"
-            :readonly="!isOwned"
-            :grip-listeners="gripListeners"
-            @edit="openEditCard(item)"
-            @delete="openDeleteCard(item.id)"
-          />
+            <CardRow
+              :card="item"
+              :index="index"
+              :draggable="isOwned"
+              :readonly="!isOwned"
+              :grip-listeners="gripListeners"
+              @edit="openEditCard(item)"
+              @delete="openDeleteCard(item.id)"
+            />
           </UCard>
         </template>
       </DraggableList>
