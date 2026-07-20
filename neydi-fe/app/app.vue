@@ -3,7 +3,7 @@ import { CUSTOM_THEMES } from '~/composables/useTheme'
 
 const { theme, setTheme } = useTheme()
 const { isLoggedIn, user, logout, restoreSession } = useAuth()
-const { loadDecks } = useDecks()
+const { loadDecks, markDecksReady } = useDecks()
 
 useHead({
   meta: [
@@ -28,6 +28,8 @@ onMounted(async () => {
   await restoreSession()
   if (isLoggedIn.value) {
     await loadDecks()
+  } else {
+    markDecksReady()
   }
 })
 </script>

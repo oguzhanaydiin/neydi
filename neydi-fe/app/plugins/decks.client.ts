@@ -10,4 +10,6 @@ export default defineNuxtPlugin(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) decks.value = JSON.parse(stored)
   } catch { }
+
+  useState('decksReady', () => false).value = true
 })

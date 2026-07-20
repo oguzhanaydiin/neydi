@@ -3,14 +3,14 @@ import type { Card } from '~/composables/useDecks'
 
 const route = useRoute()
 const router = useRouter()
-const { getDeck, isOwnedDeck, addCard, updateCard, deleteCard, updateDeck, reorderCards } = useDecks()
+const { getDeck, isOwnedDeck, decksReady, addCard, updateCard, deleteCard, updateDeck, reorderCards } = useDecks()
 
 const deckId = route.params.id as string
 const deck = computed(() => getDeck(deckId))
 const isOwned = computed(() => isOwnedDeck(deckId))
 
 watchEffect(() => {
-  if (!deck.value) router.push('/')
+  if (decksReady.value && !deck.value) router.push('/')
 })
 
 const isCardFormOpen = ref(false)
@@ -88,8 +88,18 @@ const handleEditDeck = async (name: string, desc: string) => {
 </script>
 
 <template>
+  <div
+    v-if="!decksReady"
+    class="py-24 flex justify-center"
+  >
+    <UIcon
+      name="i-lucide-loader-circle"
+      class="animate-spin size-8 text-muted"
+    />
+  </div>
+
   <UContainer
-    v-if="deck"
+    v-else-if="deck"
     class="py-10 max-w-5xl"
   >
     <!-- Header -->
