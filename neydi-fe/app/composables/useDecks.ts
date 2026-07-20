@@ -25,6 +25,7 @@ export const useDecks = () => {
 
   const decks = useState<Deck[]>('decks', () => [])
   const pinnedDecks = useState<Deck[]>('pinnedDecks', () => [])
+  const decksReady = useState('decksReady', () => false)
 
   const authHeaders = computed(() => ({
     Authorization: `Bearer ${token.value}`
@@ -40,27 +41,35 @@ export const useDecks = () => {
 
   // --- Server sync (authenticated) ---
 
+  const markDecksReady = () => {
+    decksReady.value = true
+  }
+
   // Fetch all decks from server. Called after restoreSession() in app.vue.
   const loadDecks = async () => {
-    const [owned, pinned] = await Promise.all([
-      $fetch<Deck[]>(`${apiBase}/decks`, { headers: authHeaders.value }),
-      $fetch<Array<Deck & { owner_id: string, owner_username: string, save_count: number }>>(
-        `${apiBase}/decks/pinned`,
-        { headers: authHeaders.value }
-      )
-    ])
-    decks.value = owned.map(d => ({ ...d, isPinned: false }))
-    pinnedDecks.value = pinned.map(d => ({
-      id: d.id,
-      name: d.name,
-      description: d.description,
-      cards: d.cards,
-      createdAt: d.createdAt,
-      ownerId: d.owner_id,
-      ownerUsername: d.owner_username,
-      saveCount: d.save_count,
-      isPinned: true
-    }))
+    try {
+      const [owned, pinned] = await Promise.all([
+        $fetch<Deck[]>(`${apiBase}/decks`, { headers: authHeaders.value }),
+        $fetch<Array<Deck & { owner_id: string, owner_username: string, save_count: number }>>(
+          `${apiBase}/decks/pinned`,
+          { headers: authHeaders.value }
+        )
+      ])
+      decks.value = owned.map(d => ({ ...d, isPinned: false }))
+      pinnedDecks.value = pinned.map(d => ({
+        id: d.id,
+        name: d.name,
+        description: d.description,
+        cards: d.cards,
+        createdAt: d.createdAt,
+        ownerId: d.owner_id,
+        ownerUsername: d.owner_username,
+        saveCount: d.save_count,
+        isPinned: true
+      }))
+    } finally {
+      decksReady.value = true
+    }
   }
 
   // Migrate guest decks to server right after login. Local always wins on conflict.
@@ -303,6 +312,8 @@ export const useDecks = () => {
   return {
     decks,
     pinnedDecks,
+    decksReady,
+    markDecksReady,
     getDeck,
     isOwnedDeck,
     isDeckPinned,

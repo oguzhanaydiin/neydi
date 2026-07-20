@@ -3,7 +3,7 @@ import type { Card } from '~/composables/useDecks'
 
 const route = useRoute()
 const router = useRouter()
-const { getDeck, isOwnedDeck, updateCardConfidence } = useDecks()
+const { getDeck, isOwnedDeck, decksReady, updateCardConfidence } = useDecks()
 
 const flashCardRef = ref<{ swipeOut: (d: 'left' | 'right') => void } | null>(null)
 
@@ -12,7 +12,7 @@ const deck = computed(() => getDeck(deckId))
 const isOwned = computed(() => isOwnedDeck(deckId))
 
 watchEffect(() => {
-  if (!deck.value) router.push('/')
+  if (decksReady.value && !deck.value) router.push('/')
 })
 
 interface SessionCard extends Card {
@@ -51,7 +51,9 @@ const initSession = () => {
   done.value = false
 }
 
-onMounted(initSession)
+watch(deck, (d) => {
+  if (d) initSession()
+}, { immediate: true })
 
 const toggleReveal = () => {
   revealed.value = !revealed.value
@@ -92,8 +94,18 @@ const confidenceLabelFor = (c: number) => {
 </script>
 
 <template>
+  <div
+    v-if="!decksReady"
+    class="py-24 flex justify-center"
+  >
+    <UIcon
+      name="i-lucide-loader-circle"
+      class="animate-spin size-8 text-muted"
+    />
+  </div>
+
   <UContainer
-    v-if="deck"
+    v-else-if="deck"
     class="py-10 max-w-2xl"
   >
     <!-- Header -->
