@@ -28,6 +28,11 @@ export default defineNuxtConfig({
     '/api/**': { proxy: `${apiProxyTarget}/**` }
   },
 
+  sourcemap: {
+    server: false,
+    client: false
+  },
+
   compatibilityDate: '2025-01-15',
 
   nitro: {
@@ -35,6 +40,23 @@ export default defineNuxtConfig({
       '/api/': {
         target: `${apiProxyTarget}/`,
         changeOrigin: true
+      }
+    }
+  },
+
+  vite: {
+    build: {
+      sourcemap: false,
+      modulePreload: false,
+      chunkSizeWarningLimit: 600,
+      rollupOptions: {
+        onwarn(warning, defaultHandler) {
+          if (warning.message?.includes('/* #__PURE__ */')) {
+            return
+          }
+
+          defaultHandler(warning)
+        }
       }
     }
   },
