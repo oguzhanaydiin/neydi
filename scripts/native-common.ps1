@@ -67,10 +67,10 @@ function Stop-NativeStack {
     foreach ($port in 8000, 3000) {
         $listeners = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
         foreach ($listener in $listeners) {
-            $pid = $listener.OwningProcess
-            if ($pid -and $stopped -notcontains $pid) {
-                Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
-                $stopped += $pid
+            $processId = $listener.OwningProcess
+            if ($processId -and $stopped -notcontains $processId) {
+                Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
+                $stopped += $processId
             }
         }
     }
