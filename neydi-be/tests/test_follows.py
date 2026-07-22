@@ -102,7 +102,12 @@ async def test_deleting_user_removes_follows(client: AsyncClient):
 
     assert (await client.get(f"/users/{bob['id']}")).json()["followers_count"] == 1
 
-    await client.delete(f"/users/{bob['id']}")
+    bob_token = await _login(client, "bob@test.com")
+    resp = await client.delete(
+        f"/users/{bob['id']}",
+        headers={"Authorization": f"Bearer {bob_token}"},
+    )
+    assert resp.status_code == 204
 
     profile = (await client.get(f"/users/{alice['id']}")).json()
     assert profile["following_count"] == 0

@@ -1,3 +1,4 @@
 # Cursor IDE
 .cursor/
 .env
+.pytest_cache/

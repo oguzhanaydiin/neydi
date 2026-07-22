@@ -9,7 +9,7 @@ from app.core.database import get_db
 from app.core.security import hash_password
 from app.models.deck import Deck
 from app.models.follow import Follow
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.routes.auth import get_current_user
 from app.routes.decks import _save_count
 from app.schemas.deck import DeckOut, DeckWithStatsOut
@@ -32,6 +32,14 @@ async def _get_user_or_404(user_id: uuid.UUID, db: AsyncSession) -> User:
     return user
 
 
+def _ensure_can_modify_user(current_user: User, target_user_id: uuid.UUID) -> None:
+    if current_user.id == target_user_id:
+        return
+    if current_user.role == UserRole.SUPERADMIN:
+        return
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed")
+
+
 async def _build_profile_response(user: User, db: AsyncSession) -> UserProfileResponse:
     followers_count = await db.scalar(
         select(func.count()).select_from(Follow).where(Follow.following_id == user.id)
@@ -51,9 +59,9 @@ async def _build_profile_response(user: User, db: AsyncSession) -> UserProfileRe
 
 @router.get(
     "/",
-    response_model=list[UserResponse],
+    response_model=list[UserPublicResponse],
     summary="List users",
-    description="Returns a paginated list of all users. Use `skip` and `limit` to page through results (default: first 20).",
+    description="Returns a paginated list of public user profiles. Use `skip` and `limit` to page through results (default: first 20).",
 )
 async def list_users(
     skip: int = 0, limit: int = 20, db: AsyncSession = Depends(get_db)
@@ -125,14 +133,26 @@ async def get_follow_status(
     response_model=UserResponse,
     summary="Update a user",
     description=(
-        "Partially updates a user's profile. All fields are optional — only provided fields are changed. "
-        "Returns **404** if the user doesn't exist, **409** if the new email or username is already taken by another account."
+        "Partially updates a user's profile. Requires authentication. "
+        "Users may update their own email, username, and password. "
+        "Only superadmins may change `is_active`. "
+        "Returns **403** if not allowed, **404** if the user doesn't exist, "
+        "**409** if the new email or username is already taken by another account."
     ),
 )
 async def update_user(
-    user_id: uuid.UUID, payload: UserUpdate, db: AsyncSession = Depends(get_db)
+    user_id: uuid.UUID,
+    payload: UserUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     user = await _get_user_or_404(user_id, db)
+
+    if payload.is_active is not None:
+        if current_user.role != UserRole.SUPERADMIN:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed")
+    elif current_user.id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed")
 
     if payload.email is not None:
         conflict = await db.execute(
@@ -169,9 +189,18 @@ async def update_user(
     "/{user_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a user",
-    description="Permanently deletes a user account. Returns **204** on success, **404** if the user doesn't exist.",
+    description=(
+        "Permanently deletes a user account. Requires authentication. "
+        "Users may delete their own account; superadmins may delete any account. "
+        "Returns **403** if not allowed, **204** on success, **404** if the user doesn't exist."
+    ),
 )
-async def delete_user(user_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def delete_user(
+    user_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _ensure_can_modify_user(current_user, user_id)
     user = await _get_user_or_404(user_id, db)
     await db.delete(user)
     await db.commit()
